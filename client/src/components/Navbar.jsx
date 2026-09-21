@@ -11,6 +11,7 @@ export default function Navbar({
   isConnected,
   isVoiceActive,
   isVoiceMuted,
+  hasPartnerInVoice,
   onToggleVoice,
   onToggleMute
 }) {
@@ -79,12 +80,29 @@ export default function Navbar({
           <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 md:p-1">
             <button
               onClick={onToggleVoice}
-              title={isVoiceActive ? 'Matikan Suara' : 'Mulai Panggilan Suara'}
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                isVoiceActive ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              title={
+                isVoiceActive
+                  ? 'Matikan Suara'
+                  : hasPartnerInVoice
+                  ? 'Pasangan sedang di obrolan suara 📞 (Klik untuk bergabung)'
+                  : 'Mulai Panggilan Suara'
+              }
+              className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                isVoiceActive
+                  ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
+                  : hasPartnerInVoice
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse hover:bg-emerald-500/30'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              {isVoiceActive ? <PhoneOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+              {isVoiceActive ? (
+                <PhoneOff className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              ) : (
+                <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              )}
+              {hasPartnerInVoice && !isVoiceActive && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              )}
             </button>
             {isVoiceActive && (
               <button

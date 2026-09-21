@@ -26,7 +26,12 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [reactions, setReactions] = useState([]);
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [voiceState, setVoiceState] = useState({ isActive: false, isMuted: false, connectedPeers: 0 });
+  const [voiceState, setVoiceState] = useState({
+    isActive: false,
+    isMuted: false,
+    connectedPeers: 0,
+    hasPartnerInVoice: false,
+  });
 
   // Modals
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(true);
@@ -63,6 +68,30 @@ export default function App() {
   useEffect(() => {
     voiceChat.onStateChange = (state) => {
       setVoiceState(state);
+    };
+
+    voiceChat.onPartnerVoiceStatus = ({ username: partnerName, isActive }) => {
+      if (isActive) {
+        setPartnerToast(`🎙️ ${partnerName || 'Pasangan'} mengaktifkan obrolan suara!`);
+        setTimeout(() => setPartnerToast(''), 5000);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `🎙️ ${partnerName || 'Pasangan'} bergabung ke obrolan suara.`,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `🔇 ${partnerName || 'Pasangan'} keluar dari obrolan suara.`,
+          },
+        ]);
+      }
     };
   }, []);
 
@@ -188,6 +217,7 @@ export default function App() {
         isConnected={isConnected}
         isVoiceActive={voiceState.isActive}
         isVoiceMuted={voiceState.isMuted}
+        hasPartnerInVoice={voiceState.hasPartnerInVoice}
         onToggleVoice={() => voiceChat.toggleVoice()}
         onToggleMute={() => voiceChat.toggleMute()}
         onOpenChangeVideo={() => setIsChangeVideoOpen(true)}
