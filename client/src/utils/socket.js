@@ -72,6 +72,14 @@ class MqttSocketAdapter {
         if (event === 'change-video' && data?.videoUrl) {
            this.currentVideoUrl = data.videoUrl;
         }
+
+        // WebRTC Signaling: Pass senderId so receiver knows who sent it
+        if (event.startsWith('webrtc-')) {
+           // We only process signaling directed at us, or broadcasts
+           if (data.targetId && data.targetId !== this.id) return;
+           this.emitLocal(event, { senderId, ...data });
+           return;
+        }
         
         // Avoid processing our own emitted actions for UI (like video-play)
         if (senderId === this.id) return;

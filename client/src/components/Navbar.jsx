@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Share2, Check, Video, Settings, Heart, Users, RefreshCw } from 'lucide-react';
+import { Film, Share2, Check, Video, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
 
 export default function Navbar({
   roomId,
@@ -9,6 +9,10 @@ export default function Navbar({
   onOpenSettings,
   onManualSync,
   isConnected,
+  isVoiceActive,
+  isVoiceMuted,
+  onToggleVoice,
+  onToggleMute
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -68,6 +72,32 @@ export default function Navbar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1.5 md:gap-2">
+        {/* Voice Chat Controls */}
+        {roomId && (
+          <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+            <button
+              onClick={onToggleVoice}
+              title={isVoiceActive ? 'Matikan Suara' : 'Mulai Panggilan Suara'}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                isVoiceActive ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              {isVoiceActive ? <PhoneOff className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+            </button>
+            {isVoiceActive && (
+              <button
+                onClick={onToggleMute}
+                title={isVoiceMuted ? 'Nyalakan Mic' : 'Matikan Mic'}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                  isVoiceMuted ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                }`}
+              >
+                {isVoiceMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Sync Button */}
         {roomId && (
           <button

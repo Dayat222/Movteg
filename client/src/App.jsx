@@ -7,6 +7,7 @@ import ChangeVideoModal from './components/ChangeVideoModal';
 import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
 import { socket } from './utils/socket';
+import { voiceChat } from './utils/voiceChat';
 import { MessageSquare, Video, Film, Heart, Sparkles } from 'lucide-react';
 
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
@@ -25,6 +26,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [reactions, setReactions] = useState([]);
   const [isConnected, setIsConnected] = useState(socket.connected);
+  const [voiceState, setVoiceState] = useState({ isActive: false, isMuted: false, connectedPeers: 0 });
 
   // Modals
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(true);
@@ -57,6 +59,13 @@ export default function App() {
       isGuest,
     });
   };
+
+  // Voice Chat State Listener
+  useEffect(() => {
+    voiceChat.onStateChange = (state) => {
+      setVoiceState(state);
+    };
+  }, []);
 
   // Socket Connection and Event Listeners
   useEffect(() => {
@@ -178,6 +187,10 @@ export default function App() {
         username={username}
         users={users}
         isConnected={isConnected}
+        isVoiceActive={voiceState.isActive}
+        isVoiceMuted={voiceState.isMuted}
+        onToggleVoice={() => voiceChat.toggleVoice()}
+        onToggleMute={() => voiceChat.toggleMute()}
         onOpenChangeVideo={() => setIsChangeVideoOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onManualSync={handleManualSync}
