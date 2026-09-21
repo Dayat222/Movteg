@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "description": "Watch movies together in real-time with chat and reactions for couples",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:client": "npm --prefix client run dev",
-    "dev:server": "npm --prefix server run dev",
-    "build": "npm --prefix client run build",
-    "start": "npm --prefix server start"
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=client",
+    "start": "npm start --workspace=server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
