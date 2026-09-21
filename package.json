@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "Watch movies together in real-time with chat and reactions for couples",
+  "main": "server/index.js",
+  "type": "module",
   "workspaces": [
     "client",
     "server"
@@ -12,7 +14,12 @@
     "dev:client": "npm run dev --workspace=client",
     "dev:server": "npm run dev --workspace=server",
     "build": "npm run build --workspace=client && node -e \"const fs=require('fs'); fs.cpSync('client/dist', 'dist', {recursive:true});\"",
-    "start": "npm start --workspace=server"
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
