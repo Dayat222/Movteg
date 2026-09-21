@@ -213,68 +213,106 @@ export default function VideoPlayer({
 
     // 1. Partner played video
     const handleRemotePlay = ({ currentTime: remoteTime, by }) => {
-      isRemoteUpdateRef.current = true;
       setIsPlaying(true);
       showSyncNotice(`▶️ ${by || 'Pasangan'} memutar video`);
       if (onActivity) onActivity(`${by || 'Pasangan'} memutar video`);
 
       if (isYouTube && ytPlayerRef.current?.playVideo) {
+        isRemoteUpdateRef.current = true;
         if (Math.abs((ytPlayerRef.current.getCurrentTime() || 0) - remoteTime) > 1.5) {
           ytPlayerRef.current.seekTo(remoteTime, true);
         }
         ytPlayerRef.current.playVideo();
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
       } else if (videoRef.current) {
+        let changed = false;
         if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
           videoRef.current.currentTime = remoteTime;
+          changed = true;
         }
-        videoRef.current.play().catch(() => {
-          // Browser autoplay restriction, mute and try again if needed
-        });
+        if (videoRef.current.paused) {
+          changed = true;
+          videoRef.current.play().catch(() => {
+            // Autoplay blocked by browser
+            isRemoteUpdateRef.current = false;
+          });
+        }
+        if (changed) {
+          isRemoteUpdateRef.current = true;
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        }
       }
     };
 
     // 2. Partner paused video
     const handleRemotePause = ({ currentTime: remoteTime, by }) => {
-      isRemoteUpdateRef.current = true;
       setIsPlaying(false);
       showSyncNotice(`⏸️ ${by || 'Pasangan'} menjeda video`);
       if (onActivity) onActivity(`${by || 'Pasangan'} menjeda video`);
 
       if (isYouTube && ytPlayerRef.current?.pauseVideo) {
+        isRemoteUpdateRef.current = true;
         if (Math.abs((ytPlayerRef.current.getCurrentTime() || 0) - remoteTime) > 1.5) {
           ytPlayerRef.current.seekTo(remoteTime, true);
         }
         ytPlayerRef.current.pauseVideo();
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
       } else if (videoRef.current) {
+        let changed = false;
         if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
           videoRef.current.currentTime = remoteTime;
+          changed = true;
         }
-        videoRef.current.pause();
+        if (!videoRef.current.paused) {
+          changed = true;
+          videoRef.current.pause();
+        }
+        if (changed) {
+          isRemoteUpdateRef.current = true;
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        }
       }
     };
 
     // 3. Partner seeked
     const handleRemoteSeek = ({ currentTime: remoteTime, by }) => {
-      isRemoteUpdateRef.current = true;
       showSyncNotice(`⏩ ${by || 'Pasangan'} menggeser durasi`);
       if (onActivity) onActivity(`${by || 'Pasangan'} menggeser video ke ${formatTime(remoteTime)}`);
 
       if (isYouTube && ytPlayerRef.current?.seekTo) {
+        isRemoteUpdateRef.current = true;
         ytPlayerRef.current.seekTo(remoteTime, true);
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
       } else if (videoRef.current) {
-        videoRef.current.currentTime = remoteTime;
+        if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
+          isRemoteUpdateRef.current = true;
+          videoRef.current.currentTime = remoteTime;
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        }
       }
     };
 
     // 4. Initial room sync state
     const handleRoomState = ({ isPlaying: remoteIsPlaying, currentTime: remoteTime }) => {
-      isRemoteUpdateRef.current = true;
       if (isYouTube && ytPlayerRef.current?.seekTo) {
+        isRemoteUpdateRef.current = true;
         ytPlayerRef.current.seekTo(remoteTime, true);
         if (remoteIsPlaying) ytPlayerRef.current.playVideo();
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
       } else if (videoRef.current) {
-        videoRef.current.currentTime = remoteTime;
-        if (remoteIsPlaying) videoRef.current.play().catch(() => {});
+        let changed = false;
+        if (Math.abs(videoRef.current.currentTime - (remoteTime || 0)) > 1.5) {
+          videoRef.current.currentTime = remoteTime || 0;
+          changed = true;
+        }
+        if (remoteIsPlaying && videoRef.current.paused) {
+          videoRef.current.play().catch(() => {});
+          changed = true;
+        }
+        if (changed) {
+          isRemoteUpdateRef.current = true;
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        }
       }
     };
 
