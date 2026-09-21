@@ -44,7 +44,7 @@ export default function Navbar({
       <div className="flex items-center mx-1 md:mx-3 flex-shrink min-w-0">
         {roomId && (
           <div className="flex items-center gap-1.5 md:gap-2 bg-zinc-900 border border-zinc-800 px-2 md:px-3 py-1.5 rounded-full text-xs text-zinc-300 min-w-0">
-            <span className="font-mono font-semibold text-rose-400 truncate max-w-[60px] md:max-w-none">{roomId}</span>
+            <span className="font-mono font-semibold text-rose-400">{roomId}</span>
 
             <span className="w-1 h-1 rounded-full bg-zinc-700 flex-shrink-0"></span>
 
