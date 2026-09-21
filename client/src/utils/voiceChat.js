@@ -195,13 +195,9 @@ class VoiceChatManager {
 
     // Remote audio track received
     pc.ontrack = (event) => {
-      console.log(`[Voice] Received remote audio track from ${targetId}`);
-      let stream = this.remoteStreams.get(targetId);
-      if (!stream) {
-        stream = new MediaStream();
-        this.remoteStreams.set(targetId, stream);
-      }
-      stream.addTrack(event.track);
+      console.log(`[Voice] Received remote audio track from ${targetId}`, event);
+      const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+      this.remoteStreams.set(targetId, stream);
       this.playRemoteStream(targetId, stream);
     };
 
@@ -224,16 +220,23 @@ class VoiceChatManager {
   playRemoteStream(targetId, stream) {
     let audio = this.remoteAudioElements.get(targetId);
     if (!audio) {
-      audio = new Audio();
+      audio = document.createElement('audio');
       audio.autoplay = true;
       audio.playsInline = true;
+      audio.setAttribute('playsinline', 'true');
+      audio.setAttribute('webkit-playsinline', 'true');
+      audio.style.display = 'none';
       document.body.appendChild(audio);
       this.remoteAudioElements.set(targetId, audio);
     }
 
-    audio.srcObject = stream;
+    if (audio.srcObject !== stream) {
+      audio.srcObject = stream;
+    }
+    audio.muted = false;
+    audio.volume = 1.0;
     audio.play().catch((e) => {
-      console.warn('[Voice] Remote audio autoplay error:', e);
+      console.warn('[Voice] Remote audio play error:', e);
     });
   }
 
