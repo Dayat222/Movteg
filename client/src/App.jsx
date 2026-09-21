@@ -179,7 +179,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-rose-500 selection:text-white">
+    <div className="h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col selection:bg-rose-500 selection:text-white">
       {/* Top Navigation */}
       <Navbar
         roomId={roomId}
@@ -208,8 +208,8 @@ export default function App() {
         {/* Layout: Stacked on Mobile, Grid on Desktop */}
         <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 min-h-0">
           {/* Top/Left: Video Player & Reactions */}
-          <div className="lg:col-span-2 relative flex flex-col w-full flex-none lg:flex-auto">
-            <div className="relative w-full aspect-video lg:h-[72vh] flex-none bg-black rounded-xl overflow-hidden shadow-xl border border-zinc-800/80">
+          <div className="lg:col-span-2 relative flex flex-col w-full flex-none lg:flex-auto min-h-0">
+            <div className="relative w-full aspect-video lg:aspect-auto lg:flex-1 lg:h-full flex-none bg-black rounded-xl overflow-hidden shadow-xl border border-zinc-800/80">
               <VideoPlayer
                 videoUrl={videoUrl}
                 roomId={roomId}
@@ -232,7 +232,7 @@ export default function App() {
           </div>
 
           {/* Bottom/Right: Real-time Chat Panel */}
-          <div className="flex-1 min-h-0 lg:h-[72vh] flex flex-col">
+          <div className="flex-1 min-h-0 lg:h-full flex flex-col">
             <ChatPanel
               roomId={roomId}
               username={username}
