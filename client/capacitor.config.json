@@ -5,7 +5,14 @@
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "*.youtube.com",
+      "*.googlevideo.com",
+      "*.ytimg.com",
+      "*.googleapis.com",
+      "*"
+    ]
   },
   "plugins": {
     "CapacitorHttp": {

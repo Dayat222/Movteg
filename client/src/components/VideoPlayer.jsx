@@ -33,6 +33,26 @@ export default function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [syncStatus, setSyncStatus] = useState('Tersinkronisasi 🟢');
 
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // Safe seek helper for HTML5 video on mobile/Android WebView
+  const applyVideoSeek = useCallback((video, targetTime) => {
+    if (!video || typeof targetTime !== 'number' || isNaN(targetTime)) return;
+    if (video.readyState >= 1) {
+      video.currentTime = targetTime;
+    } else {
+      const handleLoaded = () => {
+        try {
+          video.currentTime = targetTime;
+        } catch {
+          // ignore
+        }
+        video.removeEventListener('loadedmetadata', handleLoaded);
+      };
+      video.addEventListener('loadedmetadata', handleLoaded, { once: true });
+    }
+  }, []);
+
   const showSyncNotice = (text) => {
     setSyncStatus(text);
     setTimeout(() => setSyncStatus('Tersinkronisasi 🟢'), 3000);
@@ -66,7 +86,8 @@ export default function VideoPlayer({
           rel: 0,
           modestbranding: 1,
           enablejsapi: 1,
-          origin: window.location.origin,
+          playsinline: 1,
+          ...(isLocalhost ? {} : { origin: window.location.origin }),
         },
         events: {
           onReady: (event) => {
@@ -140,9 +161,11 @@ export default function VideoPlayer({
         hlsRef.current = hls;
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = videoUrl;
+        video.load();
       }
     } else {
       video.src = videoUrl;
+      video.load();
     }
 
     return () => {
@@ -227,7 +250,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         let changed = false;
         if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
-          videoRef.current.currentTime = remoteTime;
+          applyVideoSeek(videoRef.current, remoteTime);
           changed = true;
         }
         if (videoRef.current.paused) {
@@ -260,7 +283,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         let changed = false;
         if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
-          videoRef.current.currentTime = remoteTime;
+          applyVideoSeek(videoRef.current, remoteTime);
           changed = true;
         }
         if (!videoRef.current.paused) {
@@ -286,7 +309,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
           isRemoteUpdateRef.current = true;
-          videoRef.current.currentTime = remoteTime;
+          applyVideoSeek(videoRef.current, remoteTime);
           setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
         }
       }
@@ -302,7 +325,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         let changed = false;
         if (Math.abs(videoRef.current.currentTime - (remoteTime || 0)) > 1.5) {
-          videoRef.current.currentTime = remoteTime || 0;
+          applyVideoSeek(videoRef.current, remoteTime || 0);
           changed = true;
         }
         if (remoteIsPlaying && videoRef.current.paused) {
@@ -356,6 +379,9 @@ export default function VideoPlayer({
             className="w-full h-full object-contain max-h-[78vh]"
             controls
             playsInline
+            webkit-playsinline="true"
+            preload="auto"
+            crossOrigin="anonymous"
             onPlay={handleHtml5Play}
             onPause={handleHtml5Pause}
             onSeeking={() => { isSeekingRef.current = true; }}

@@ -29,11 +29,16 @@ public class MainActivity extends BridgeActivity {
             );
         }
 
-        // 2. Configure WebView to allow WebRTC incoming audio autoplay
+        // 2. Configure WebView to allow WebRTC audio autoplay and video playback
         WebView webView = getBridge().getWebView();
         if (webView != null) {
             WebSettings settings = webView.getSettings();
             settings.setMediaPlaybackRequiresUserGesture(false);
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setAllowFileAccess(true);
+            settings.setAllowContentAccess(true);
         }
     }
 }
