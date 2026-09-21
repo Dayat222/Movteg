@@ -57,7 +57,14 @@ class VoiceChatManager {
 
   async startVoice() {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      this.localStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false // Matikkan AGC agar volume film tidak naik-turun/distorsi
+        }, 
+        video: false 
+      });
       this.isActive = true;
       this.isMuted = false;
       this._notifyStateChange();
