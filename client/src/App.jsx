@@ -35,7 +35,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState('video'); // 'video' | 'chat'
 
   // Join Room Handler
-  const handleJoin = (targetRoomId, enteredName) => {
+  const handleJoin = (targetRoomId, enteredName, isGuest = false) => {
     setRoomId(targetRoomId);
     setUsername(enteredName);
     setIsJoinModalOpen(false);
@@ -53,6 +53,7 @@ export default function App() {
     socket.emit('join-room', {
       roomId: targetRoomId,
       username: enteredName,
+      isGuest,
     });
   };
 

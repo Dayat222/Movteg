@@ -51,7 +51,7 @@ export default function JoinRoomModal({
 
     localStorage.setItem('movteg_username', username.trim());
     setError('');
-    onJoin(targetRoomId, username.trim());
+    onJoin(targetRoomId, username.trim(), mode === 'join' || !!initialRoomId);
   };
 
   return (

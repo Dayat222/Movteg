@@ -1,13 +1,26 @@
 import Peer from 'peerjs';
 
-// Reliable public STUN servers for WebRTC NAT traversal
+// TURN & STUN servers to bypass 4G Carrier-Grade NAT (CGNAT) in Indonesia
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
-  { urls: 'stun:openrelay.metered.ca:80' },
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
 
 class P2PSync {
@@ -57,7 +70,7 @@ class P2PSync {
 
   emit(event, data = {}) {
     if (event === 'join-room') {
-      this.joinRoom(data.roomId, data.username);
+      this.joinRoom(data.roomId, data.username, data.isGuest);
       return;
     }
 
@@ -132,7 +145,7 @@ class P2PSync {
     });
   }
 
-  joinRoom(roomId, username) {
+  joinRoom(roomId, username, isGuest = false) {
     if (!roomId || !username) return;
 
     this.roomId = roomId;
@@ -147,9 +160,15 @@ class P2PSync {
     }
 
     const cleanRoomCode = roomId.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const hostPeerId = `movteg-v2-${cleanRoomCode}`;
+    const hostPeerId = `movteg-v3-${cleanRoomCode}`;
 
-    // Try to claim Host ID
+    // If opened via invite link, directly connect as Guest to avoid ID conflicts!
+    if (isGuest) {
+      this._connectAsGuest(hostPeerId);
+      return;
+    }
+
+    // Otherwise attempt to claim Host ID
     try {
       this.peer = new Peer(hostPeerId, {
         config: { iceServers: ICE_SERVERS },
@@ -175,8 +194,8 @@ class P2PSync {
     });
 
     this.peer.on('error', (err) => {
-      // If host ID is already taken by partner, connect as Guest!
       if (err.type === 'unavailable-id') {
+        // Host ID is already taken, fall back to guest!
         this._connectAsGuest(hostPeerId);
       } else {
         console.warn('PeerJS notice:', err.type);
@@ -203,22 +222,29 @@ class P2PSync {
     this.isHost = false;
 
     this.peer.on('open', () => {
+      // Initiate WebRTC connection to Host
       const conn = this.peer.connect(hostPeerId, {
         metadata: { username: this.username },
         reliable: true,
       });
 
-      conn.on('open', () => {
+      const setupConn = (openedConn) => {
         this.connected = true;
-        this.connections.set(hostPeerId, conn);
+        this.connections.set(hostPeerId, openedConn);
         this._trigger('connect');
 
-        // Greet host immediately with our username
-        conn.send({
+        // Greet host immediately with username
+        openedConn.send({
           type: 'guest-hello',
           username: this.username,
         });
-      });
+      };
+
+      if (conn.open) {
+        setupConn(conn);
+      } else {
+        conn.on('open', () => setupConn(conn));
+      }
 
       conn.on('data', (data) => {
         this._handleData(data, conn);
@@ -229,6 +255,10 @@ class P2PSync {
         this.connected = false;
         this._trigger('disconnect');
       });
+
+      conn.on('error', (err) => {
+        console.warn('Guest connection error:', err);
+      });
     });
 
     this.peer.on('error', (err) => {
@@ -237,10 +267,10 @@ class P2PSync {
   }
 
   _handleIncomingGuest(conn) {
-    conn.on('open', () => {
+    const handleOpen = () => {
       this.connections.set(conn.peer, conn);
 
-      // We wait for guest-hello to get their exact name, or send current state
+      // Send initial room state
       const currentUsers = this._getUsersList();
       conn.send({
         type: 'room-state',
@@ -250,27 +280,33 @@ class P2PSync {
         users: currentUsers,
         isHost: false,
       });
-    });
+    };
+
+    if (conn.open) {
+      handleOpen();
+    } else {
+      conn.on('open', handleOpen);
+    }
 
     conn.on('data', (data) => {
       if (data.type === 'guest-hello') {
         conn.metadata = { username: data.username };
         const updatedUsers = this._getUsersList();
 
-        // 1. UPDATE HOST UI WITH NEW USER
+        // 1. Update Host UI
         this._trigger('user-joined', {
           username: data.username,
           users: updatedUsers,
         });
 
-        // 2. BROADCAST TO GUEST SO GUEST SEES THE FULL USER LIST TOO
+        // 2. Broadcast to all peers
         this.broadcast({
           type: 'user-joined',
           username: data.username,
           users: updatedUsers,
         });
 
-        // 3. SEND COMPLETE ROOM-STATE TO GUEST WITH ALL USERS
+        // 3. Send current state to guest
         conn.send({
           type: 'room-state',
           videoUrl: this.currentVideoState.videoUrl,
@@ -293,10 +329,9 @@ class P2PSync {
         return;
       }
 
-      // Handle event locally on host
       this._handleData(data, conn);
 
-      // Forward to other connected peers (if > 1 guest)
+      // Forward to other connected peers
       this.connections.forEach((otherConn, peerId) => {
         if (peerId !== conn.peer && otherConn.open) {
           otherConn.send(data);
