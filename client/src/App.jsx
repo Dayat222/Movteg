@@ -204,11 +204,11 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 p-3 md:p-6 flex flex-col max-w-7xl w-full mx-auto">
+      <main className="flex-1 p-3 md:p-6 flex flex-col max-w-7xl w-full mx-auto min-h-0">
         {/* Layout: Stacked on Mobile, Grid on Desktop */}
-        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 min-h-[500px]">
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 min-h-0">
           {/* Top/Left: Video Player & Reactions */}
-          <div className="lg:col-span-2 relative flex flex-col w-full">
+          <div className="lg:col-span-2 relative flex flex-col w-full flex-none lg:flex-auto">
             <div className="relative w-full aspect-video lg:h-[72vh] flex-none bg-black rounded-xl overflow-hidden shadow-xl border border-zinc-800/80">
               <VideoPlayer
                 videoUrl={videoUrl}
@@ -232,7 +232,7 @@ export default function App() {
           </div>
 
           {/* Bottom/Right: Real-time Chat Panel */}
-          <div className="flex-1 min-h-[45vh] lg:h-[72vh] flex flex-col">
+          <div className="flex-1 min-h-0 lg:h-[72vh] flex flex-col">
             <ChatPanel
               roomId={roomId}
               username={username}
