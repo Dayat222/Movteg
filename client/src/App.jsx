@@ -7,7 +7,7 @@ import ChangeVideoModal from './components/ChangeVideoModal';
 import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
 import { socket } from './utils/socket';
-import { MessageSquare, Video, Film, Heart } from 'lucide-react';
+import { MessageSquare, Video, Film, Heart, Sparkles } from 'lucide-react';
 
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
@@ -33,6 +33,7 @@ export default function App() {
 
   // Mobile layout tab
   const [mobileTab, setMobileTab] = useState('video'); // 'video' | 'chat'
+  const [partnerToast, setPartnerToast] = useState('');
 
   // Join Room Handler
   const handleJoin = (targetRoomId, enteredName, isGuest = false) => {
@@ -77,6 +78,8 @@ export default function App() {
 
     const handleUserJoined = ({ username: joinedUser, users: updatedUsers }) => {
       setUsers(updatedUsers || []);
+      setPartnerToast(`🎉 ${joinedUser} bergabung ke ruangan bioskop!`);
+      setTimeout(() => setPartnerToast(''), 5000);
       setMessages((prev) => [
         ...prev,
         {
@@ -179,6 +182,14 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onManualSync={handleManualSync}
       />
+
+      {/* Floating Partner Join Notification */}
+      {partnerToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-fade-in border border-emerald-400/40 backdrop-blur-md">
+          <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+          <span>{partnerToast}</span>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 p-3 md:p-6 flex flex-col max-w-7xl w-full mx-auto">
