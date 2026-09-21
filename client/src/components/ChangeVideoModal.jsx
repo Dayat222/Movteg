@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Link2, Play, Sparkles } from 'lucide-react';
+import { X, Link2, Play, Popcorn } from 'lucide-react';
 import { isYouTubeUrl } from '../utils/youtube';
 
 const PRESET_MOVIES = [
@@ -116,7 +116,7 @@ export default function ChangeVideoModal({
           {/* Quick Preset Movies */}
           <div className="pt-3 border-t border-zinc-800">
             <div className="flex items-center gap-1.5 mb-2.5">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Popcorn className="w-4 h-4 text-amber-400" />
               <span className="text-xs font-semibold text-zinc-300">
                 Atau Pilih Contoh Film untuk Pengujian Cepat:
               </span>

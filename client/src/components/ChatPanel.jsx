@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Smile, Heart, Popcorn, Flame, Laugh, Sparkles } from 'lucide-react';
+import { Send, Smile, Heart, Popcorn, Flame, Laugh } from 'lucide-react';
 
 const QUICK_EMOJIS = ['❤️', '🍿', '😂', '🥺', '🔥', '👏', '✨'];
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Heart, Sparkles, LogIn, PlusCircle } from 'lucide-react';
+import { Film, Heart, LogIn, PlusCircle } from 'lucide-react';
 
 export default function JoinRoomModal({
   isOpen,

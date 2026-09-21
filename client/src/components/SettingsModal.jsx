@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Server, CheckCircle2, Wifi, Zap, Sparkles } from 'lucide-react';
+import { X, Server, CheckCircle2, Wifi, Zap } from 'lucide-react';
 import { SERVER_URL, updateServerUrl, resetToP2P, isP2PMode } from '../utils/socket';
 
 export default function SettingsModal({
@@ -51,7 +51,7 @@ export default function SettingsModal({
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-400 font-medium">Mode Koneksi:</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-950/80 text-rose-400 border border-rose-800/40 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
+                <Wifi className="w-3 h-3" />
                 {isP2PMode ? 'P2P WebRTC Direct' : 'WebSocket Server'}
               </span>
             </div>
@@ -67,7 +67,7 @@ export default function SettingsModal({
 
           {isP2PMode && (
             <div className="bg-emerald-950/30 border border-emerald-800/40 p-3 rounded-xl text-xs text-emerald-300/90 leading-relaxed">
-              ✨ <strong>Mode P2P Aktif</strong>: Kamu dan pasangan terhubung langsung lewat WebRTC tanpa perlu backend server terpisah. 100% Gratis dan langsung aktif di Vercel tanpa kartu kredit!
+              ⚡ <strong>Mode P2P Aktif</strong>: Kamu dan pasangan terhubung langsung lewat WebRTC tanpa perlu backend server terpisah. 100% Gratis dan langsung aktif di Vercel tanpa kartu kredit!
             </div>
           )}
 

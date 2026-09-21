@@ -8,7 +8,7 @@ import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
-import { MessageSquare, Video, Film, Heart, Sparkles } from 'lucide-react';
+import { MessageSquare, Video, Film, Heart, Popcorn } from 'lucide-react';
 
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
@@ -34,7 +34,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Mobile layout tab
-  const [mobileTab, setMobileTab] = useState('video'); // 'video' | 'chat'
   const [partnerToast, setPartnerToast] = useState('');
 
   // Join Room Handler
@@ -199,44 +198,18 @@ export default function App() {
       {/* Floating Partner Join Notification */}
       {partnerToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-fade-in border border-emerald-400/40 backdrop-blur-md">
-          <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+          <Popcorn className="w-4 h-4 text-amber-300 animate-bounce" />
           <span>{partnerToast}</span>
         </div>
       )}
 
       {/* Main Content Area */}
       <main className="flex-1 p-3 md:p-6 flex flex-col max-w-7xl w-full mx-auto">
-        {/* Mobile View Toggle */}
-        <div className="lg:hidden flex mb-3 bg-zinc-900 border border-zinc-800 rounded-xl p-1 text-xs">
-          <button
-            onClick={() => setMobileTab('video')}
-            className={`flex-1 py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all ${
-              mobileTab === 'video' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400'
-            }`}
-          >
-            <Video className="w-3.5 h-3.5" />
-            Layar Film
-          </button>
-          <button
-            onClick={() => setMobileTab('chat')}
-            className={`flex-1 py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all ${
-              mobileTab === 'chat' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            Obrolan ({messages.length})
-          </button>
-        </div>
-
-        {/* Grid Layout: Video Player + Chat */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-h-[500px]">
-          {/* Left / Center: Video Player & Reactions */}
-          <div
-            className={`lg:col-span-2 relative flex flex-col ${
-              mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'
-            }`}
-          >
-            <div className="relative w-full h-[55vh] md:h-[72vh] flex-1">
+        {/* Layout: Stacked on Mobile, Grid on Desktop */}
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 min-h-[500px]">
+          {/* Top/Left: Video Player & Reactions */}
+          <div className="lg:col-span-2 relative flex flex-col w-full">
+            <div className="relative w-full aspect-video lg:h-[72vh] flex-none bg-black rounded-xl overflow-hidden shadow-xl border border-zinc-800/80">
               <VideoPlayer
                 videoUrl={videoUrl}
                 roomId={roomId}
@@ -247,7 +220,7 @@ export default function App() {
             </div>
 
             {/* Video Footer info */}
-            <div className="mt-3 flex items-center justify-between text-xs text-zinc-500 px-1">
+            <div className="mt-2.5 flex items-center justify-between text-xs text-zinc-500 px-1">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                 <span className="truncate max-w-xs md:max-w-md">
@@ -258,12 +231,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right: Real-time Chat Panel */}
-          <div
-            className={`h-[70vh] lg:h-[72vh] ${
-              mobileTab === 'video' ? 'hidden lg:flex flex-col' : 'flex flex-col'
-            }`}
-          >
+          {/* Bottom/Right: Real-time Chat Panel */}
+          <div className="flex-1 min-h-[45vh] lg:h-[72vh] flex flex-col">
             <ChatPanel
               roomId={roomId}
               username={username}
