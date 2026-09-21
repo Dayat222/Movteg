@@ -1,6 +1,9 @@
-import Peer from 'peerjs';
+import PeerModule from 'peerjs';
 
-// TURN & STUN servers to bypass 4G Carrier-Grade NAT (CGNAT) in Indonesia
+// Ensure correct Peer constructor across different bundler outputs (ESM / CommonJS / Vite)
+const Peer = PeerModule.default?.Peer || PeerModule.default || PeerModule.Peer || PeerModule;
+
+// Reliable public STUN and TURN servers for WebRTC NAT traversal (including 4G CGNAT)
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -160,15 +163,15 @@ class P2PSync {
     }
 
     const cleanRoomCode = roomId.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const hostPeerId = `movteg-v3-${cleanRoomCode}`;
+    const hostPeerId = `movteg-v4-${cleanRoomCode}`;
 
-    // If opened via invite link, directly connect as Guest to avoid ID conflicts!
+    // If opened via invite link, directly connect as Guest!
     if (isGuest) {
       this._connectAsGuest(hostPeerId);
       return;
     }
 
-    // Otherwise attempt to claim Host ID
+    // Otherwise register as Host
     try {
       this.peer = new Peer(hostPeerId, {
         config: { iceServers: ICE_SERVERS },
@@ -177,7 +180,8 @@ class P2PSync {
       this.peer = new Peer({ config: { iceServers: ICE_SERVERS } });
     }
 
-    this.peer.on('open', () => {
+    this.peer.on('open', (id) => {
+      console.log('[P2P] Host peer opened with ID:', id);
       this.isHost = true;
       this.connected = true;
       this._trigger('connect');
@@ -194,15 +198,15 @@ class P2PSync {
     });
 
     this.peer.on('error', (err) => {
+      console.warn('[P2P] Host peer error:', err.type);
       if (err.type === 'unavailable-id') {
-        // Host ID is already taken, fall back to guest!
+        // Someone is already host, connect as guest
         this._connectAsGuest(hostPeerId);
-      } else {
-        console.warn('PeerJS notice:', err.type);
       }
     });
 
     this.peer.on('connection', (conn) => {
+      console.log('[P2P] Host received incoming connection from:', conn.peer);
       this._handleIncomingGuest(conn);
     });
   }
@@ -221,14 +225,15 @@ class P2PSync {
     });
     this.isHost = false;
 
-    this.peer.on('open', () => {
-      // Initiate WebRTC connection to Host
+    this.peer.on('open', (guestId) => {
+      console.log('[P2P] Guest peer opened with ID:', guestId, 'connecting to host:', hostPeerId);
       const conn = this.peer.connect(hostPeerId, {
         metadata: { username: this.username },
         reliable: true,
       });
 
       const setupConn = (openedConn) => {
+        console.log('[P2P] Guest connection successfully OPENED to host!');
         this.connected = true;
         this.connections.set(hostPeerId, openedConn);
         this._trigger('connect');
@@ -247,27 +252,30 @@ class P2PSync {
       }
 
       conn.on('data', (data) => {
+        console.log('[P2P] Guest received data:', data.type);
         this._handleData(data, conn);
       });
 
       conn.on('close', () => {
+        console.log('[P2P] Guest connection closed');
         this.connections.delete(hostPeerId);
         this.connected = false;
         this._trigger('disconnect');
       });
 
       conn.on('error', (err) => {
-        console.warn('Guest connection error:', err);
+        console.warn('[P2P] Guest connection error:', err);
       });
     });
 
     this.peer.on('error', (err) => {
-      console.warn('Guest peer error:', err);
+      console.warn('[P2P] Guest peer error:', err);
     });
   }
 
   _handleIncomingGuest(conn) {
     const handleOpen = () => {
+      console.log('[P2P] Host accepted open connection with guest:', conn.peer);
       this.connections.set(conn.peer, conn);
 
       // Send initial room state
@@ -289,6 +297,7 @@ class P2PSync {
     }
 
     conn.on('data', (data) => {
+      console.log('[P2P] Host received data from guest:', data.type);
       if (data.type === 'guest-hello') {
         conn.metadata = { username: data.username };
         const updatedUsers = this._getUsersList();
@@ -306,7 +315,7 @@ class P2PSync {
           users: updatedUsers,
         });
 
-        // 3. Send current state to guest
+        // 3. Send current state to guest with updated user list
         conn.send({
           type: 'room-state',
           videoUrl: this.currentVideoState.videoUrl,
