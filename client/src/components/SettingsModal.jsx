@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { X, Server, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
-import { SERVER_URL, updateServerUrl } from '../utils/socket';
+import { X, Server, CheckCircle2, Wifi, Zap, Sparkles } from 'lucide-react';
+import { SERVER_URL, updateServerUrl, resetToP2P, isP2PMode } from '../utils/socket';
 
 export default function SettingsModal({
   isOpen,
   onClose,
   isConnected,
 }) {
-  const [url, setUrl] = useState(SERVER_URL);
+  const [url, setUrl] = useState(isP2PMode ? '' : SERVER_URL);
   const [isSaved, setIsSaved] = useState(false);
 
   if (!isOpen) return null;
@@ -23,9 +23,8 @@ export default function SettingsModal({
     }, 1000);
   };
 
-  const handleResetLocal = () => {
-    localStorage.removeItem('movteg_server_url');
-    window.location.reload();
+  const handleUseP2P = () => {
+    resetToP2P();
   };
 
   return (
@@ -35,7 +34,7 @@ export default function SettingsModal({
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Server className="w-5 h-5 text-rose-500" />
-            <h3 className="text-base font-semibold text-white">Pengaturan Server</h3>
+            <h3 className="text-base font-semibold text-white">Status Koneksi & Server</h3>
           </div>
           <button
             onClick={onClose}
@@ -48,38 +47,43 @@ export default function SettingsModal({
         {/* Body */}
         <div className="p-5 space-y-4">
           {/* Status badge */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950 border border-zinc-800">
-            <span className="text-xs text-zinc-300 font-medium">Status WebSocket:</span>
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
-              {isConnected ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400">Terhubung</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-4 h-4 text-rose-400" />
-                  <span className="text-rose-400">Terputus</span>
-                </>
-              )}
+          <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400 font-medium">Mode Koneksi:</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-950/80 text-rose-400 border border-rose-800/40 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                {isP2PMode ? 'P2P WebRTC Direct' : 'WebSocket Server'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
+              <span className="text-xs text-zinc-400 font-medium">Status Jaringan:</span>
+              <div className="flex items-center gap-1.5 text-xs font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400">Siap & Terhubung</span>
+              </div>
             </div>
           </div>
 
-          <form onSubmit={handleSave} className="space-y-3">
+          {isP2PMode && (
+            <div className="bg-emerald-950/30 border border-emerald-800/40 p-3 rounded-xl text-xs text-emerald-300/90 leading-relaxed">
+              ✨ <strong>Mode P2P Aktif</strong>: Kamu dan pasangan terhubung langsung lewat WebRTC tanpa perlu backend server terpisah. 100% Gratis dan langsung aktif di Vercel tanpa kartu kredit!
+            </div>
+          )}
+
+          {/* Custom Server Configuration (Optional) */}
+          <form onSubmit={handleSave} className="space-y-3 pt-2 border-t border-zinc-800">
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-                Alamat Backend WebSocket Server:
+                Alamat Backend Kustom (Opsional):
               </label>
               <input
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="http://localhost:4000 atau https://backend-kamu.onrender.com"
+                placeholder="https://server-kamu.com (kosongkan untuk P2P)"
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 font-mono"
               />
-              <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">
-                Jika di-deploy ke Vercel, masukkan URL backend Socket.IO yang kamu deploy di Render, Railway, atau VPS.
-              </p>
             </div>
 
             <div className="flex gap-2">
@@ -87,14 +91,14 @@ export default function SettingsModal({
                 type="submit"
                 className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-medium py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer"
               >
-                {isSaved ? 'Tersimpan!' : 'Simpan & Hubungkan'}
+                {isSaved ? 'Tersimpan!' : 'Gunakan Server Ini'}
               </button>
               <button
                 type="button"
-                onClick={handleResetLocal}
+                onClick={handleUseP2P}
                 className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Reset Default
+                Gunakan P2P Bawaan
               </button>
             </div>
           </form>

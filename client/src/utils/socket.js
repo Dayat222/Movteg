@@ -1,36 +1,31 @@
 import { io } from 'socket.io-client';
+import { p2pSync } from './p2pSync';
 
-// Determine backend URL
-const getBackendUrl = () => {
-  // 1. Check custom stored URL in localStorage
-  const savedUrl = localStorage.getItem('movteg_server_url');
-  if (savedUrl) return savedUrl;
+const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('movteg_server_url') : null;
+const envUrl = import.meta.env.VITE_SERVER_URL;
 
-  // 2. Check environment variable (Vite)
-  if (import.meta.env.VITE_SERVER_URL) {
-    return import.meta.env.VITE_SERVER_URL;
-  }
+// If custom server URL is explicitly configured
+const customServerUrl = savedUrl || envUrl;
 
-  // 3. If running on localhost
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:4000';
-  }
+export const isP2PMode = !customServerUrl;
+export const SERVER_URL = customServerUrl || 'P2P WebRTC (Tanpa Server / 100% Gratis)';
 
-  // 4. Default fallback: same origin (for fullstack deployment)
-  return window.location.origin;
-};
-
-export const SERVER_URL = getBackendUrl();
-
-export const socket = io(SERVER_URL, {
-  autoConnect: false,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 1000,
-  transports: ['websocket', 'polling'],
-});
+export const socket = customServerUrl
+  ? io(customServerUrl, {
+      autoConnect: false,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+    })
+  : p2pSync;
 
 export const updateServerUrl = (newUrl) => {
   if (!newUrl) return;
   localStorage.setItem('movteg_server_url', newUrl);
+  window.location.reload();
+};
+
+export const resetToP2P = () => {
+  localStorage.removeItem('movteg_server_url');
   window.location.reload();
 };
