@@ -35,8 +35,16 @@ export default function ChangeVideoModal({
   onSelectVideo,
   currentUrl,
 }) {
-  const [inputUrl, setInputUrl] = useState(currentUrl || '');
+  const [inputUrl, setInputUrl] = useState('');
   const [error, setError] = useState('');
+
+  // Reset input when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setInputUrl('');
+      setError('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
