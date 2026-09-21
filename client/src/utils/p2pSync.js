@@ -1,9 +1,19 @@
 import Peer from 'peerjs';
 
+// Reliable public STUN servers for WebRTC NAT traversal
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:openrelay.metered.ca:80' },
+];
+
 class P2PSync {
   constructor() {
     this.peer = null;
-    this.connections = new Map();
+    this.connections = new Map(); // peerId -> conn
     this.listeners = new Map();
     this.isHost = false;
     this.roomId = null;
@@ -42,7 +52,7 @@ class P2PSync {
   }
 
   connect() {
-    // no-op, connection starts in join-room
+    // no-op, joinRoom handles initialization
   }
 
   emit(event, data = {}) {
@@ -51,7 +61,6 @@ class P2PSync {
       return;
     }
 
-    // Keep track of video state on local actions
     if (event === 'video-play') {
       this.currentVideoState.isPlaying = true;
       if (typeof data.currentTime === 'number') {
@@ -72,13 +81,6 @@ class P2PSync {
       this.currentVideoState.isPlaying = false;
     }
 
-    const payload = {
-      type: event,
-      ...data,
-      by: this.username,
-      sender: this.username,
-    };
-
     if (event === 'send-message') {
       const msg = {
         id: `p2p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -86,9 +88,7 @@ class P2PSync {
         text: data.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      // Trigger locally
       this._trigger('new-message', msg);
-      // Send to peers
       this.broadcast({ type: 'new-message', ...msg });
       return;
     }
@@ -111,6 +111,12 @@ class P2PSync {
       return;
     }
 
+    const payload = {
+      type: event,
+      ...data,
+      by: this.username,
+      sender: this.username,
+    };
     this.broadcast(payload);
   }
 
@@ -120,7 +126,7 @@ class P2PSync {
         try {
           conn.send(payload);
         } catch (e) {
-          console.warn('Failed to send payload to peer:', e);
+          console.warn('Broadcast error:', e);
         }
       }
     });
@@ -132,7 +138,6 @@ class P2PSync {
     this.roomId = roomId;
     this.username = username;
 
-    // Clean up any existing peer
     if (this.peer) {
       try {
         this.peer.destroy();
@@ -142,13 +147,15 @@ class P2PSync {
     }
 
     const cleanRoomCode = roomId.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const hostPeerId = `movteg-v1-${cleanRoomCode}`;
+    const hostPeerId = `movteg-v2-${cleanRoomCode}`;
 
-    // Attempt to register as Host first
+    // Try to claim Host ID
     try {
-      this.peer = new Peer(hostPeerId);
+      this.peer = new Peer(hostPeerId, {
+        config: { iceServers: ICE_SERVERS },
+      });
     } catch {
-      this.peer = new Peer();
+      this.peer = new Peer({ config: { iceServers: ICE_SERVERS } });
     }
 
     this.peer.on('open', () => {
@@ -168,16 +175,16 @@ class P2PSync {
     });
 
     this.peer.on('error', (err) => {
-      // If host ID is already taken, someone is hosting! We connect as guest!
+      // If host ID is already taken by partner, connect as Guest!
       if (err.type === 'unavailable-id') {
         this._connectAsGuest(hostPeerId);
       } else {
-        console.warn('PeerJS notice:', err.type, err.message);
+        console.warn('PeerJS notice:', err.type);
       }
     });
 
     this.peer.on('connection', (conn) => {
-      this._handleIncomingConnection(conn);
+      this._handleIncomingGuest(conn);
     });
   }
 
@@ -190,7 +197,9 @@ class P2PSync {
       }
     }
 
-    this.peer = new Peer();
+    this.peer = new Peer({
+      config: { iceServers: ICE_SERVERS },
+    });
     this.isHost = false;
 
     this.peer.on('open', () => {
@@ -204,7 +213,7 @@ class P2PSync {
         this.connections.set(hostPeerId, conn);
         this._trigger('connect');
 
-        // Announce join to host
+        // Greet host immediately with our username
         conn.send({
           type: 'guest-hello',
           username: this.username,
@@ -220,10 +229,6 @@ class P2PSync {
         this.connected = false;
         this._trigger('disconnect');
       });
-
-      conn.on('error', (err) => {
-        console.warn('Guest connection error:', err);
-      });
     });
 
     this.peer.on('error', (err) => {
@@ -231,41 +236,48 @@ class P2PSync {
     });
   }
 
-  _handleIncomingConnection(conn) {
+  _handleIncomingGuest(conn) {
     conn.on('open', () => {
       this.connections.set(conn.peer, conn);
 
-      // Send initial room state
-      const usersList = this._getUsersList();
+      // We wait for guest-hello to get their exact name, or send current state
+      const currentUsers = this._getUsersList();
       conn.send({
         type: 'room-state',
         videoUrl: this.currentVideoState.videoUrl,
         isPlaying: this.currentVideoState.isPlaying,
         currentTime: this.currentVideoState.currentTime,
-        users: usersList,
+        users: currentUsers,
         isHost: false,
-      });
-
-      // Inform existing users
-      this.broadcast({
-        type: 'user-joined',
-        username: conn.metadata?.username || 'Pasangan',
-        users: usersList,
       });
     });
 
     conn.on('data', (data) => {
       if (data.type === 'guest-hello') {
         conn.metadata = { username: data.username };
-        const usersList = this._getUsersList();
+        const updatedUsers = this._getUsersList();
+
+        // 1. UPDATE HOST UI WITH NEW USER
         this._trigger('user-joined', {
           username: data.username,
-          users: usersList,
+          users: updatedUsers,
         });
+
+        // 2. BROADCAST TO GUEST SO GUEST SEES THE FULL USER LIST TOO
         this.broadcast({
           type: 'user-joined',
           username: data.username,
-          users: usersList,
+          users: updatedUsers,
+        });
+
+        // 3. SEND COMPLETE ROOM-STATE TO GUEST WITH ALL USERS
+        conn.send({
+          type: 'room-state',
+          videoUrl: this.currentVideoState.videoUrl,
+          isPlaying: this.currentVideoState.isPlaying,
+          currentTime: this.currentVideoState.currentTime,
+          users: updatedUsers,
+          isHost: false,
         });
         return;
       }
@@ -281,10 +293,10 @@ class P2PSync {
         return;
       }
 
-      // Handle event locally
+      // Handle event locally on host
       this._handleData(data, conn);
 
-      // Forward to other connected peers (if any)
+      // Forward to other connected peers (if > 1 guest)
       this.connections.forEach((otherConn, peerId) => {
         if (peerId !== conn.peer && otherConn.open) {
           otherConn.send(data);
@@ -323,7 +335,14 @@ class P2PSync {
   _handleData(data) {
     if (!data || !data.type) return;
 
-    if (data.type === 'video-play') {
+    if (data.type === 'room-state') {
+      if (data.videoUrl) this.currentVideoState.videoUrl = data.videoUrl;
+      this._trigger('room-state', data);
+    } else if (data.type === 'user-joined') {
+      this._trigger('user-joined', data);
+    } else if (data.type === 'user-left') {
+      this._trigger('user-left', data);
+    } else if (data.type === 'video-play') {
       this.currentVideoState.isPlaying = true;
       if (typeof data.currentTime === 'number') {
         this.currentVideoState.currentTime = data.currentTime;

@@ -171,6 +171,7 @@ export default function App() {
       {/* Top Navigation */}
       <Navbar
         roomId={roomId}
+        username={username}
         users={users}
         isConnected={isConnected}
         onOpenChangeVideo={() => setIsChangeVideoOpen(true)}
