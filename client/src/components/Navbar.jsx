@@ -28,41 +28,43 @@ export default function Navbar({
   return (
     <header className="h-16 px-3 md:px-6 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 flex items-center justify-between z-40 sticky top-0">
       {/* Brand */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-rose-950">
-          <Film className="w-4 h-4 md:w-5 md:h-5" />
+      <div className="flex items-center gap-2 md:gap-2.5">
+        <div className="w-7 h-7 md:w-9 md:h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-rose-950 flex-shrink-0">
+          <Film className="w-3.5 h-3.5 md:w-5 md:h-5" />
         </div>
-        <div>
+        <div className="hidden sm:block">
           <span className="font-bold text-sm md:text-base text-white tracking-tight flex items-center gap-1.5">
             Movteg <Heart className="w-3.5 h-3.5 text-rose-500 fill-current" />
           </span>
-          <p className="text-[10px] text-zinc-400 hidden sm:block">Watch Party Bareng Pasangan</p>
+          <p className="text-[10px] text-zinc-400 hidden lg:block">Watch Party Bareng Pasangan</p>
         </div>
       </div>
 
       {/* Center: Room Info & Partner Status */}
-      <div className="flex items-center gap-1.5 md:gap-3">
+      <div className="flex items-center mx-1 md:mx-3 flex-shrink min-w-0">
         {roomId && (
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-2.5 md:px-3 py-1.5 rounded-full text-xs text-zinc-300">
-            <span className="font-mono font-semibold text-rose-400">{roomId}</span>
+          <div className="flex items-center gap-1.5 md:gap-2 bg-zinc-900 border border-zinc-800 px-2 md:px-3 py-1.5 rounded-full text-xs text-zinc-300 min-w-0">
+            <span className="font-mono font-semibold text-rose-400 truncate max-w-[60px] md:max-w-none">{roomId}</span>
 
-            <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+            <span className="w-1 h-1 rounded-full bg-zinc-700 flex-shrink-0"></span>
 
-            <div className="flex items-center gap-1.5 text-[11px]">
+            <div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-[11px] whitespace-nowrap flex-shrink-0">
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
                   users.length > 1 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
                 }`}
               ></span>
               {users.length > 1 ? (
                 <span className="text-emerald-400 font-medium">
-                  <span className="hidden sm:inline">{partner?.username || 'Pasangan'} Terhubung 💕</span>
-                  <span className="sm:hidden">Terhubung 💕</span> ({users.length})
+                  <span className="hidden md:inline">{partner?.username || 'Pasangan'} Terhubung 💕</span>
+                  <span className="hidden sm:inline md:hidden">Terhubung 💕</span>
+                  <span className="sm:hidden">({users.length})</span>
                 </span>
               ) : (
                 <span className="text-amber-400 font-medium">
-                  <span className="hidden sm:inline">Menunggu Pasangan ⏳</span>
-                  <span className="sm:hidden">Menunggu ⏳</span> ({users.length || 1})
+                  <span className="hidden md:inline">Menunggu Pasangan ⏳</span>
+                  <span className="hidden sm:inline md:hidden">Menunggu ⏳</span>
+                  <span className="sm:hidden">⏳ ({users.length || 1})</span>
                 </span>
               )}
             </div>
@@ -71,10 +73,10 @@ export default function Navbar({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-1.5 md:gap-2">
+      <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
         {/* Voice Chat Controls */}
         {roomId && (
-          <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+          <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 md:p-1">
             <button
               onClick={onToggleVoice}
               title={isVoiceActive ? 'Matikan Suara' : 'Mulai Panggilan Suara'}
@@ -82,7 +84,7 @@ export default function Navbar({
                 isVoiceActive ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              {isVoiceActive ? <PhoneOff className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+              {isVoiceActive ? <PhoneOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />}
             </button>
             {isVoiceActive && (
               <button
@@ -92,7 +94,7 @@ export default function Navbar({
                   isVoiceMuted ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
                 }`}
               >
-                {isVoiceMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isVoiceMuted ? <MicOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               </button>
             )}
           </div>
@@ -103,7 +105,7 @@ export default function Navbar({
           <button
             onClick={onManualSync}
             title="Sinkronkan Ulang Video"
-            className="p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer"
+            className="hidden sm:flex p-1.5 md:p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </button>
@@ -112,34 +114,32 @@ export default function Navbar({
         {/* Change Video Button */}
         <button
           onClick={onOpenChangeVideo}
-          className="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700 px-2.5 md:px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer"
+          className="flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700 p-1.5 md:px-3 md:py-2 rounded-xl transition-all cursor-pointer"
+          title="Ganti Film"
         >
-          <Video className="w-3.5 h-3.5 text-rose-400" />
-          <span className="hidden sm:inline">Ganti Film</span>
+          <Video className="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-400" />
+          <span className="hidden md:inline ml-1.5 text-xs font-medium">Ganti Film</span>
         </button>
 
         {/* Invite Button */}
         {roomId && (
           <button
             onClick={handleCopyInvite}
-            className={`flex items-center gap-1.5 px-3 md:px-3.5 py-2 rounded-xl text-xs font-medium transition-all shadow-md cursor-pointer ${
+            title="Undang Pasangan"
+            className={`flex items-center justify-center p-1.5 md:px-3.5 md:py-2 rounded-xl transition-all shadow-md cursor-pointer ${
               copied
                 ? 'bg-emerald-600 text-white'
                 : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-950'
             }`}
           >
             {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Disalin!</span>
-              </>
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
             ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Undang Pasangan</span>
-                <span className="sm:hidden">Undang</span>
-              </>
+              <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
             )}
+            <span className="hidden md:inline ml-1.5 text-xs font-medium">
+              {copied ? 'Disalin!' : 'Undang'}
+            </span>
           </button>
         )}
 
@@ -147,11 +147,11 @@ export default function Navbar({
         <button
           onClick={onOpenSettings}
           title="Pengaturan Koneksi"
-          className="p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer relative"
+          className="p-1.5 md:p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer relative"
         >
           <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" />
           <span
-            className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${
+            className={`absolute top-1 right-1 md:top-1.5 md:right-1.5 w-1.5 h-1.5 rounded-full ${
               isConnected ? 'bg-emerald-500' : 'bg-rose-500'
             }`}
           ></span>
