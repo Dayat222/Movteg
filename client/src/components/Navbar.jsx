@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
 
 export default function Navbar({
@@ -26,18 +28,28 @@ export default function Navbar({
 
   const handleCopyInvite = async () => {
     const inviteUrl = `https://movteg.vercel.app/?room=${roomId}`;
-    if (navigator.share) {
-      try {
+    
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({
+          title: 'Movteg - Nonton Film Bareng Pasangan 🍿💕',
+          text: `Ayo nonton bareng aku di Movteg! Masuk ke room: ${roomId}`,
+          url: inviteUrl,
+          dialogTitle: 'Bagikan room Movteg'
+        });
+        return;
+      } else if (navigator.share) {
         await navigator.share({
           title: 'Movteg - Nonton Film Bareng Pasangan 🍿💕',
           text: `Ayo nonton bareng aku di Movteg! Masuk ke room: ${roomId}`,
           url: inviteUrl,
         });
         return;
-      } catch (err) {
-        // Fallback to clipboard if share was cancelled or failed
       }
+    } catch (err) {
+      // Fallback to clipboard if share was cancelled or failed
     }
+
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
