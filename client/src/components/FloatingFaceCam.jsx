@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Draggable from 'react-draggable';
 import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal } from 'lucide-react';
 
 export default function FloatingFaceCam({
@@ -17,14 +18,8 @@ export default function FloatingFaceCam({
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const nodeRef = useRef(null);
   const [isMinimized, setIsMinimized] = useState(false);
-
-  // Drag state
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const positionRef = useRef({ x: 0, y: 0 });
-  const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const positionStart = useRef({ x: 0, y: 0 });
 
   // Extract first remote stream with video track
   let partnerStream = null;
@@ -59,69 +54,41 @@ export default function FloatingFaceCam({
     }
   }, [partnerStream]);
 
-  const handlePointerDown = (e) => {
-    if (e.target.closest('button')) return;
-    isDragging.current = true;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    positionStart.current = { ...positionRef.current };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDragging.current) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    const newPos = {
-      x: positionStart.current.x + dx,
-      y: positionStart.current.y + dy,
-    };
-    positionRef.current = newPos;
-    setPosition(newPos);
-  };
-
-  const handlePointerUp = (e) => {
-    isDragging.current = false;
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  };
-
   // Only show floating card if user or partner has camera active
   if (!isVideoActive && !hasPartnerInCam) {
     return null;
   }
 
   return (
-    <div 
-      className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in"
-      style={{ transform: `translate(${position.x}px, ${position.y}px)`, touchAction: 'none' }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
-      <div
-        className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
-          isMinimized ? 'w-36 h-12' : 'w-56 md:w-64'
-        }`}
+    <Draggable nodeRef={nodeRef} handle=".drag-handle">
+      <div 
+        ref={nodeRef}
+        className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in"
       >
-        {/* Header Bar */}
-        <div className="px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between cursor-move">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0"></span>
-            <span className="text-[11px] font-semibold text-white truncate flex items-center gap-1">
-              {partnerName || 'Pasangan'} 💕
-            </span>
+        <div
+          className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
+            isMinimized ? 'w-36 h-12' : 'w-56 md:w-64'
+          }`}
+        >
+          {/* Header Bar */}
+          <div className="drag-handle px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between cursor-move active:cursor-grabbing">
+            <div className="flex items-center gap-1.5 min-w-0 pointer-events-none">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0"></span>
+              <span className="text-[11px] font-semibold text-white truncate flex items-center gap-1">
+                {partnerName || 'Pasangan'} 💕
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <GripHorizontal className="w-4 h-4 text-zinc-500 pointer-events-none" />
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+                className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+                title={isMinimized ? 'Perbesar' : 'Minimalkan'}
+              >
+                {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <GripHorizontal className="w-4 h-4 text-zinc-500" />
-            <button
-              onClick={() => setIsMinimized(!isMinimized)}
-              className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
-              title={isMinimized ? 'Perbesar' : 'Minimalkan'}
-            >
-              {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
 
         {/* Video Area (Shown when not minimized) */}
         {!isMinimized && (
@@ -196,5 +163,6 @@ export default function FloatingFaceCam({
         )}
       </div>
     </div>
+    </Draggable>
   );
 }
