@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal } from 'lucide-react';
 
 export default function FloatingFaceCam({
   localStream,
@@ -59,64 +59,44 @@ export default function FloatingFaceCam({
     }
   }, [partnerStream]);
 
-  useEffect(() => {
-    const handleMove = (e) => {
-      if (!isDragging.current) return;
-      // Prevent scrolling while dragging
-      if (e.cancelable) e.preventDefault();
-      
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const dx = clientX - dragStart.current.x;
-      const dy = clientY - dragStart.current.y;
-      
-      const newPos = {
-        x: positionStart.current.x + dx,
-        y: positionStart.current.y + dy,
-      };
-      positionRef.current = newPos;
-      setPosition(newPos);
-    };
+  const handlePointerDown = (e) => {
+    if (e.target.closest('button')) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    positionStart.current = { ...positionRef.current };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
 
-    const handleUp = () => {
-      isDragging.current = false;
+  const handlePointerMove = (e) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    const newPos = {
+      x: positionStart.current.x + dx,
+      y: positionStart.current.y + dy,
     };
+    positionRef.current = newPos;
+    setPosition(newPos);
+  };
 
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleUp);
-    window.addEventListener('touchcancel', handleUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleUp);
-      window.removeEventListener('touchcancel', handleUp);
-    };
-  }, []);
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
 
   // Only show floating card if user or partner has camera active
   if (!isVideoActive && !hasPartnerInCam) {
     return null;
   }
 
-  const handleStart = (e) => {
-    if (e.target.closest('button')) return;
-    isDragging.current = true;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    dragStart.current = { x: clientX, y: clientY };
-    positionStart.current = { ...positionRef.current };
-  };
-
   return (
     <div 
-      className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in touch-none"
-      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-      onMouseDown={handleStart}
-      onTouchStart={handleStart}
+      className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in"
+      style={{ transform: `translate(${position.x}px, ${position.y}px)`, touchAction: 'none' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       <div
         className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
@@ -124,20 +104,23 @@ export default function FloatingFaceCam({
         }`}
       >
         {/* Header Bar */}
-        <div className="px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between">
+        <div className="px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between cursor-move">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0"></span>
-            <span className="text-[11px] font-semibold text-white truncate">
+            <span className="text-[11px] font-semibold text-white truncate flex items-center gap-1">
               {partnerName || 'Pasangan'} 💕
             </span>
           </div>
-          <button
-            onClick={() => setIsMinimized(!isMinimized)}
-            className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
-            title={isMinimized ? 'Perbesar' : 'Minimalkan'}
-          >
-            {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <GripHorizontal className="w-4 h-4 text-zinc-500" />
+            <button
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+              title={isMinimized ? 'Perbesar' : 'Minimalkan'}
+            >
+              {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </div>
 
         {/* Video Area (Shown when not minimized) */}
