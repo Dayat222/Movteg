@@ -21,6 +21,7 @@ export default function FloatingFaceCam({
 
   // Drag state
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const positionRef = useRef({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const positionStart = useRef({ x: 0, y: 0 });
@@ -63,37 +64,59 @@ export default function FloatingFaceCam({
     return null;
   }
 
-  const handlePointerDown = (e) => {
+  useEffect(() => {
+    const handleMove = (e) => {
+      if (!isDragging.current) return;
+      // Prevent scrolling while dragging
+      if (e.cancelable) e.preventDefault();
+      
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = clientX - dragStart.current.x;
+      const dy = clientY - dragStart.current.y;
+      
+      const newPos = {
+        x: positionStart.current.x + dx,
+        y: positionStart.current.y + dy,
+      };
+      positionRef.current = newPos;
+      setPosition(newPos);
+    };
+
+    const handleUp = () => {
+      isDragging.current = false;
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleUp);
+    window.addEventListener('touchcancel', handleUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleUp);
+      window.removeEventListener('touchcancel', handleUp);
+    };
+  }, []);
+
+  const handleStart = (e) => {
     if (e.target.closest('button')) return;
     isDragging.current = true;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    positionStart.current = { ...position };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDragging.current) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    setPosition({
-      x: positionStart.current.x + dx,
-      y: positionStart.current.y + dy,
-    });
-  };
-
-  const handlePointerUp = (e) => {
-    isDragging.current = false;
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragStart.current = { x: clientX, y: clientY };
+    positionStart.current = { ...positionRef.current };
   };
 
   return (
     <div 
       className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in touch-none"
       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onMouseDown={handleStart}
+      onTouchStart={handleStart}
     >
       <div
         className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
@@ -126,10 +149,11 @@ export default function FloatingFaceCam({
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                className="w-full h-full object-cover"
+                controls={false}
+                className="w-full h-full object-cover pointer-events-none"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-zinc-500 p-4 text-center">
+              <div className="flex flex-col items-center justify-center text-zinc-500 p-4 text-center pointer-events-none">
                 <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 mb-2">
                   <User className="w-6 h-6" />
                 </div>
@@ -141,12 +165,13 @@ export default function FloatingFaceCam({
 
             {/* Self Mini-PIP Video Preview */}
             {isVideoActive && localStream && (
-              <div className="absolute bottom-2 right-2 w-16 h-20 md:w-20 md:h-24 rounded-xl overflow-hidden border-2 border-rose-500 shadow-xl bg-black">
+              <div className="absolute bottom-2 right-2 w-16 h-20 md:w-20 md:h-24 rounded-xl overflow-hidden border-2 border-rose-500 shadow-xl bg-black pointer-events-none">
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
+                  controls={false}
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
               </div>
