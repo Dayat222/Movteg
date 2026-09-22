@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,7 +37,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-
       - name: Capacitor Sync
         working-directory: ./client
         run: npx cap sync android
@@ -47,8 +49,24 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Prepare Direct APK
+        run: |
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk Movteg.apk
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Movteg-Android-APK
-          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          path: Movteg.apk
+
+      - name: Publish Direct APK Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: latest
+          name: "Movteg Latest Android APK"
+          draft: false
+          prerelease: false
+          files: Movteg.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
