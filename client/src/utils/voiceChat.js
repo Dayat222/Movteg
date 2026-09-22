@@ -205,6 +205,16 @@ class CallManager {
         await this.startVoice();
       }
 
+      // IMPORTANT: On mobile, we MUST stop the existing camera track BEFORE requesting a new one, 
+      // otherwise the hardware is locked and throws "Could not start video source".
+      if (this.localStream) {
+        const oldVideo = this.localStream.getVideoTracks()[0];
+        if (oldVideo) {
+          oldVideo.stop();
+          this.localStream.removeTrack(oldVideo);
+        }
+      }
+
       console.log(`[Call] Starting camera (facingMode: ${this.facingMode})...`);
       const camStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -221,11 +231,6 @@ class CallManager {
       if (!this.localStream) {
         this.localStream = new MediaStream([videoTrack]);
       } else {
-        const oldVideo = this.localStream.getVideoTracks()[0];
-        if (oldVideo) {
-          this.localStream.removeTrack(oldVideo);
-          oldVideo.stop();
-        }
         this.localStream.addTrack(videoTrack);
         // Force React to detect object reference change
         this.localStream = new MediaStream(this.localStream.getTracks());
