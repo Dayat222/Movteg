@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Share2, Check, Video, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
+import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
 
 export default function Navbar({
   roomId,
@@ -14,6 +14,9 @@ export default function Navbar({
   hasPartnerInVoice,
   onToggleVoice,
   onToggleMute,
+  isVideoActive,
+  hasPartnerInCam,
+  onToggleVideo,
   isScreenSharing,
   hasActiveScreenShare,
   onToggleScreenShare,
@@ -119,6 +122,34 @@ export default function Navbar({
                 {isVoiceMuted ? <MicOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               </button>
             )}
+
+            {/* Video Call (Camera) Button */}
+            <button
+              onClick={onToggleVideo}
+              title={
+                isVideoActive
+                  ? 'Matikan Kamera Wajah'
+                  : hasPartnerInCam
+                  ? 'Pasangan menyalakan kamera 📹 (Klik untuk buka kamera)'
+                  : 'Nyalakan Kamera Wajah (Video Call)'
+              }
+              className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                isVideoActive
+                  ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
+                  : hasPartnerInCam
+                  ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 animate-pulse hover:bg-pink-500/30'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              {isVideoActive ? (
+                <VideoOff className="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-400" />
+              ) : (
+                <Video className={`w-3.5 h-3.5 md:w-4 md:h-4 ${hasPartnerInCam ? 'text-pink-400' : ''}`} />
+              )}
+              {hasPartnerInCam && !isVideoActive && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-pink-400 animate-ping"></span>
+              )}
+            </button>
           </div>
         )}
 

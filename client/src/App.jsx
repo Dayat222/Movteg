@@ -8,6 +8,7 @@ import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
 import ScreenSharePlayer from './components/ScreenSharePlayer';
 import UpdateModal from './components/UpdateModal';
+import FloatingFaceCam from './components/FloatingFaceCam';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
 import { screenShare } from './utils/screenShare';
@@ -33,8 +34,12 @@ export default function App() {
   const [voiceState, setVoiceState] = useState({
     isActive: false,
     isMuted: false,
+    isVideoActive: false,
     connectedPeers: 0,
     hasPartnerInVoice: false,
+    hasPartnerInCam: false,
+    localStream: null,
+    remoteStreams: null,
   });
   const [screenShareState, setScreenShareState] = useState({
     isSharing: false,
@@ -110,6 +115,30 @@ export default function App() {
             id: `sys-${Date.now()}`,
             isSystem: true,
             text: `🔇 ${partnerName || 'Pasangan'} keluar dari obrolan suara.`,
+          },
+        ]);
+      }
+    };
+
+    voiceChat.onPartnerCamStatus = ({ username: partnerName, isVideoActive }) => {
+      if (isVideoActive) {
+        setPartnerToast(`📹 ${partnerName || 'Pasangan'} menyalakan kamera wajah!`);
+        setTimeout(() => setPartnerToast(''), 5000);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `📹 ${partnerName || 'Pasangan'} mengaktifkan kamera wajah (Video Call).`,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `📷 ${partnerName || 'Pasangan'} mematikan kamera wajah.`,
           },
         ]);
       }
@@ -303,6 +332,9 @@ export default function App() {
         hasPartnerInVoice={voiceState.hasPartnerInVoice}
         onToggleVoice={() => voiceChat.toggleVoice()}
         onToggleMute={() => voiceChat.toggleMute()}
+        isVideoActive={voiceState.isVideoActive}
+        hasPartnerInCam={voiceState.hasPartnerInCam}
+        onToggleVideo={() => voiceChat.toggleVideo()}
         isScreenSharing={screenShareState.isSharing}
         hasActiveScreenShare={screenShareState.hasActiveShare}
         onToggleScreenShare={handleToggleScreenShare}
@@ -385,6 +417,22 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Floating Video Call (Face-Cam) */}
+      <FloatingFaceCam
+        localStream={voiceState.localStream}
+        remoteStreams={voiceState.remoteStreams}
+        isVideoActive={voiceState.isVideoActive}
+        isVoiceActive={voiceState.isActive}
+        isMuted={voiceState.isMuted}
+        hasPartnerInCam={voiceState.hasPartnerInCam}
+        hasPartnerInVoice={voiceState.hasPartnerInVoice}
+        partnerName={users.find((u) => u.username && u.username !== username)?.username}
+        onToggleVideo={() => voiceChat.toggleVideo()}
+        onToggleVoice={() => voiceChat.toggleVoice()}
+        onToggleMute={() => voiceChat.toggleMute()}
+        onFlipCamera={() => voiceChat.flipCamera()}
+      />
 
       {/* Modals */}
       <JoinRoomModal

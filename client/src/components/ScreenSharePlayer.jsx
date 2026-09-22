@@ -38,25 +38,69 @@ export default function ScreenSharePlayer({
     }
   }, [stream, isPresenter, isMuted]);
 
+  const [isCssFullscreen, setIsCssFullscreen] = useState(false);
+
   // Fullscreen change listener
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!(document.fullscreenElement || document.webkitFullscreenElement || isCssFullscreen));
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [isCssFullscreen]);
 
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch((err) => {
-        console.error('Failed to enter fullscreen:', err);
-      });
+    const video = videoRef.current;
+    const container = containerRef.current;
+
+    // 1. If currently in CSS fullscreen, exit it
+    if (isCssFullscreen) {
+      setIsCssFullscreen(false);
+      setIsFullscreen(false);
+      return;
+    }
+
+    // 2. If currently in native browser fullscreen, exit it
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+      setIsFullscreen(false);
+      return;
+    }
+
+    // 3. Try iOS WebKit native video fullscreen
+    if (video && typeof video.webkitEnterFullscreen === 'function') {
+      try {
+        video.webkitEnterFullscreen();
+        setIsFullscreen(true);
+        return;
+      } catch (err) {
+        console.warn('[ScreenSharePlayer] webkitEnterFullscreen failed, falling back:', err);
+      }
+    }
+
+    // 4. Try standard HTML5 Container / Video requestFullscreen
+    const targetEl = container || video;
+    if (targetEl && (targetEl.requestFullscreen || targetEl.webkitRequestFullscreen)) {
+      const requestMethod = targetEl.requestFullscreen || targetEl.webkitRequestFullscreen;
+      requestMethod.call(targetEl)
+        .then(() => setIsFullscreen(true))
+        .catch((err) => {
+          console.warn('[ScreenSharePlayer] Native requestFullscreen failed, using CSS fallback:', err);
+          setIsCssFullscreen(true);
+          setIsFullscreen(true);
+        });
     } else {
-      document.exitFullscreen().catch((err) => {
-        console.error('Failed to exit fullscreen:', err);
-      });
+      // 5. Fallback for mobile WebViews that block native fullscreen: CSS Fullscreen
+      setIsCssFullscreen(true);
+      setIsFullscreen(true);
     }
   };
 
@@ -88,7 +132,11 @@ export default function ScreenSharePlayer({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-black flex items-center justify-center group select-none overflow-hidden"
+      className={
+        isCssFullscreen
+          ? 'fixed inset-0 z-50 w-screen h-screen bg-black flex items-center justify-center group select-none overflow-hidden'
+          : 'relative w-full h-full bg-black flex items-center justify-center group select-none overflow-hidden'
+      }
     >
       {/* Video Element */}
       <video
