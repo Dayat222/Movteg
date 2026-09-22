@@ -30,6 +30,15 @@ export default function App() {
     /Android|iPhone|iPad/i.test(navigator.userAgent) &&
     !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 
+  // Auto-redirect to APK on mobile browser if not already tried
+  useEffect(() => {
+    if (isMobileWeb && roomId && !urlParams.get('fallback')) {
+      const fallbackUrl = encodeURIComponent(`https://movteg.vercel.app/?room=${roomId}&fallback=1`);
+      const intentUrl = `intent://movteg.vercel.app/?room=${roomId}#Intent;scheme=https;package=com.movteg.app;S.browser_fallback_url=${fallbackUrl};end`;
+      window.location.replace(intentUrl);
+    }
+  }, [isMobileWeb, roomId]);
+
   const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
