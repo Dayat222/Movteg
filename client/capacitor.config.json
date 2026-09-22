@@ -4,9 +4,11 @@
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https",
+    "url": "https://movteg.vercel.app",
     "cleartext": true,
     "allowNavigation": [
+      "movteg.vercel.app",
+      "*.vercel.app",
       "*.youtube.com",
       "*.googlevideo.com",
       "*.ytimg.com",
