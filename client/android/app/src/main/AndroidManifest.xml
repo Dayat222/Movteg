@@ -25,6 +25,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep Links for WhatsApp & Browser: https://movteg.vercel.app -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="movteg.vercel.app" />
+            </intent-filter>
+
+            <!-- Custom URI Scheme: movteg:// -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="movteg" />
+            </intent-filter>
+
         </activity>
 
         <provider

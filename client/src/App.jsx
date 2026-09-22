@@ -26,6 +26,10 @@ export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('movteg_username') || '');
   const [isInRoom, setIsInRoom] = useState(false);
 
+  const isMobileWeb = typeof window !== 'undefined' &&
+    /Android|iPhone|iPad/i.test(navigator.userAgent) &&
+    !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
   const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -321,6 +325,27 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col selection:bg-rose-500 selection:text-white">
+      {/* Smart Banner: Open in Movteg App for Mobile Browser visitors */}
+      {isMobileWeb && (
+        <div className="bg-gradient-to-r from-rose-950 via-zinc-900 to-rose-950 border-b border-rose-500/30 px-3 py-2 flex items-center justify-between z-50 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-rose-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-rose-950">
+              <Film className="w-3.5 h-3.5 text-white" />
+            </div>
+            <div className="truncate">
+              <span className="font-semibold text-white">Buka di Aplikasi Movteg</span>
+              <span className="text-zinc-400 text-[10px] hidden sm:inline ml-1.5">Untuk video call & kontrol film lebih lancar</span>
+            </div>
+          </div>
+          <a
+            href={`intent://movteg.vercel.app/?room=${roomId || ''}#Intent;scheme=https;package=com.movteg.app;end`}
+            className="bg-rose-600 hover:bg-rose-500 text-white font-semibold px-3 py-1 rounded-lg text-xs flex-shrink-0 ml-2 transition-colors shadow-md shadow-rose-950 cursor-pointer"
+          >
+            Buka di App
+          </a>
+        </div>
+      )}
+
       {/* Top Navigation */}
       <Navbar
         roomId={roomId}

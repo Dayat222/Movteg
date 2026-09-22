@@ -31,7 +31,7 @@ public class MainActivity extends BridgeActivity {
         }
 
         // 2. Configure WebView to allow WebRTC audio autoplay and video playback
-        WebView webView = getBridge().getWebView();
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         if (webView != null) {
             WebSettings settings = webView.getSettings();
             settings.setMediaPlaybackRequiresUserGesture(false);
@@ -40,6 +40,38 @@ public class MainActivity extends BridgeActivity {
             settings.setDatabaseEnabled(true);
             settings.setAllowFileAccess(true);
             settings.setAllowContentAccess(true);
+        }
+
+        // 3. Handle cold start deep link intent
+        handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLinkIntent(intent);
+    }
+
+    private void handleDeepLinkIntent(android.content.Intent intent) {
+        if (intent == null || intent.getData() == null) return;
+        android.net.Uri data = intent.getData();
+        String scheme = data.getScheme();
+        String targetUrl = null;
+
+        if ("movteg".equalsIgnoreCase(scheme)) {
+            String query = data.getQuery();
+            targetUrl = "https://movteg.vercel.app/" + (query != null && !query.isEmpty() ? "?" + query : "");
+        } else if (data.toString().startsWith("https://movteg.vercel.app") || data.toString().startsWith("http://movteg.vercel.app")) {
+            targetUrl = data.toString();
+        }
+
+        if (targetUrl != null) {
+            final String finalUrl = targetUrl;
+            WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+            if (webView != null) {
+                webView.post(() -> webView.loadUrl(finalUrl));
+            }
         }
     }
 }

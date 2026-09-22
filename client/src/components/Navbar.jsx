@@ -24,8 +24,20 @@ export default function Navbar({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopyInvite = () => {
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+  const handleCopyInvite = async () => {
+    const inviteUrl = `https://movteg.vercel.app/?room=${roomId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Movteg - Nonton Film Bareng Pasangan 🍿💕',
+          text: `Ayo nonton bareng aku di Movteg! Masuk ke room: ${roomId}`,
+          url: inviteUrl,
+        });
+        return;
+      } catch (err) {
+        // Fallback to clipboard if share was cancelled or failed
+      }
+    }
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
