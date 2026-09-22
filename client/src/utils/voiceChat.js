@@ -332,6 +332,7 @@ class CallManager {
         isActive: this.isActive,
         isMuted: this.isMuted,
         isVideoActive: this.isVideoActive,
+        facingMode: this.facingMode,
         connectedPeers: this.peers.size,
         hasPartnerInVoice: Array.from(this.activeVoiceUsers).some((id) => id !== socket.id),
         hasPartnerInCam: Array.from(this.activeCamUsers).some((id) => id !== socket.id),

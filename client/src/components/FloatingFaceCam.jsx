@@ -10,6 +10,7 @@ export default function FloatingFaceCam({
   isMuted,
   hasPartnerInCam,
   hasPartnerInVoice,
+  facingMode,
   partnerName,
   onToggleVideo,
   onToggleVoice,
@@ -63,10 +64,10 @@ export default function FloatingFaceCam({
     <Draggable nodeRef={nodeRef} handle=".drag-handle">
       <div 
         ref={nodeRef}
-        className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in"
+        className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none"
       >
         <div
-          className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
+          className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 animate-fade-in ${
             isMinimized ? 'w-36 h-12' : 'w-56 md:w-64'
           }`}
         >
@@ -122,7 +123,7 @@ export default function FloatingFaceCam({
                   playsInline
                   muted
                   controls={false}
-                  className="w-full h-full object-cover scale-x-[-1]"
+                  className={`w-full h-full object-cover ${facingMode !== 'environment' ? 'scale-x-[-1]' : ''}`}
                 />
               </div>
             )}

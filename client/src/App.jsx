@@ -461,6 +461,7 @@ export default function App() {
         isMuted={voiceState.isMuted}
         hasPartnerInCam={voiceState.hasPartnerInCam}
         hasPartnerInVoice={voiceState.hasPartnerInVoice}
+        facingMode={voiceState.facingMode}
         partnerName={users.find((u) => u.username && u.username !== username)?.username}
         onToggleVideo={() => voiceChat.toggleVideo()}
         onToggleVoice={() => voiceChat.toggleVoice()}
