@@ -19,6 +19,12 @@ export default function FloatingFaceCam({
   const remoteVideoRef = useRef(null);
   const [isMinimized, setIsMinimized] = useState(false);
 
+  // Drag state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const positionStart = useRef({ x: 0, y: 0 });
+
   // Extract first remote stream with video track
   let partnerStream = null;
   if (remoteStreams && remoteStreams.size > 0) {
@@ -57,8 +63,38 @@ export default function FloatingFaceCam({
     return null;
   }
 
+  const handlePointerDown = (e) => {
+    if (e.target.closest('button')) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    positionStart.current = { ...position };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPosition({
+      x: positionStart.current.x + dx,
+      y: positionStart.current.y + dy,
+    });
+  };
+
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
   return (
-    <div className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in">
+    <div 
+      className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none animate-fade-in touch-none"
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
       <div
         className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ${
           isMinimized ? 'w-36 h-12' : 'w-56 md:w-64'

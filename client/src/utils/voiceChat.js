@@ -227,6 +227,8 @@ class CallManager {
           oldVideo.stop();
         }
         this.localStream.addTrack(videoTrack);
+        // Force React to detect object reference change
+        this.localStream = new MediaStream(this.localStream.getTracks());
       }
 
       this.isVideoActive = true;
