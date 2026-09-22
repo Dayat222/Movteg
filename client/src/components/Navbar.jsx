@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Share2, Check, Video, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
+import { Film, Share2, Check, Video, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
 
 export default function Navbar({
   roomId,
@@ -13,7 +13,11 @@ export default function Navbar({
   isVoiceMuted,
   hasPartnerInVoice,
   onToggleVoice,
-  onToggleMute
+  onToggleMute,
+  isScreenSharing,
+  hasActiveScreenShare,
+  onToggleScreenShare,
+  canShareScreen,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -126,6 +130,41 @@ export default function Navbar({
             className="hidden sm:flex p-1.5 md:p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
+          </button>
+        )}
+
+        {/* Screen Share Button */}
+        {roomId && (canShareScreen || hasActiveScreenShare) && (
+          <button
+            onClick={onToggleScreenShare}
+            disabled={!canShareScreen && !isScreenSharing}
+            className={`flex items-center justify-center p-1.5 md:px-3 md:py-2 rounded-xl transition-all cursor-pointer border ${
+              isScreenSharing
+                ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-500 shadow-md shadow-rose-950 animate-pulse'
+                : hasActiveScreenShare
+                ? 'bg-emerald-950/80 text-emerald-400 border-emerald-600/50 hover:bg-emerald-900/80'
+                : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 hover:border-zinc-700'
+            }`}
+            title={
+              isScreenSharing
+                ? 'Hentikan Berbagi Layar'
+                : hasActiveScreenShare
+                ? 'Sedang Menonton Siaran Layar'
+                : 'Bagikan Layar Laptop (Bebas Link Film)'
+            }
+          >
+            {isScreenSharing ? (
+              <MonitorOff className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
+            ) : (
+              <MonitorUp
+                className={`w-3.5 h-3.5 md:w-4 md:h-4 ${
+                  hasActiveScreenShare ? 'text-emerald-400' : 'text-amber-400'
+                }`}
+              />
+            )}
+            <span className="hidden md:inline ml-1.5 text-xs font-medium">
+              {isScreenSharing ? 'Stop Layar' : hasActiveScreenShare ? 'Siaran Aktif' : 'Bagi Layar'}
+            </span>
           </button>
         )}
 

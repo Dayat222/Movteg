@@ -6,9 +6,11 @@ import ReactionsOverlay from './components/ReactionsOverlay';
 import ChangeVideoModal from './components/ChangeVideoModal';
 import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
+import ScreenSharePlayer from './components/ScreenSharePlayer';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
-import { MessageSquare, Video, Film, Heart, Popcorn } from 'lucide-react';
+import { screenShare } from './utils/screenShare';
+import { MessageSquare, Video, Film, Heart, Popcorn, Tv } from 'lucide-react';
 
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
@@ -31,6 +33,13 @@ export default function App() {
     isMuted: false,
     connectedPeers: 0,
     hasPartnerInVoice: false,
+  });
+  const [screenShareState, setScreenShareState] = useState({
+    isSharing: false,
+    hasActiveShare: false,
+    stream: null,
+    sharerName: '',
+    isPresenter: false,
   });
 
   // Modals
@@ -64,10 +73,18 @@ export default function App() {
     });
   };
 
-  // Voice Chat State Listener
+  // Voice Chat & Screen Share State Listeners
   useEffect(() => {
     voiceChat.onStateChange = (state) => {
       setVoiceState(state);
+    };
+
+    screenShare.onStateChange = (state) => {
+      setScreenShareState(state);
+      if (state.hasActiveShare && state.sharerName && !state.isPresenter) {
+        setPartnerToast(`📺 ${state.sharerName} sedang membagikan layar!`);
+        setTimeout(() => setPartnerToast(''), 5000);
+      }
     };
 
     voiceChat.onPartnerVoiceStatus = ({ username: partnerName, isActive }) => {
@@ -159,6 +176,28 @@ export default function App() {
       setReactions((prev) => [...prev, reaction]);
     };
 
+    const handleScreenShareEvent = (data) => {
+      if (data.isSharing && data.sharerId !== socket.id) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `📺 ${data.sharerName || 'Pasangan'} mulai membagikan layar film.`,
+          },
+        ]);
+      } else if (!data.isSharing && data.sharerId !== socket.id) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `🛑 Siaran layar telah dihentikan, kembali ke pemutar video URL.`,
+          },
+        ]);
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('room-state', handleRoomState);
@@ -167,6 +206,7 @@ export default function App() {
     socket.on('change-video', handleChangeVideo);
     socket.on('new-message', handleNewMessage);
     socket.on('new-reaction', handleNewReaction);
+    socket.on('screen-share-state', handleScreenShareEvent);
 
     return () => {
       socket.off('connect', handleConnect);
@@ -177,8 +217,35 @@ export default function App() {
       socket.off('change-video', handleChangeVideo);
       socket.off('new-message', handleNewMessage);
       socket.off('new-reaction', handleNewReaction);
+      socket.off('screen-share-state', handleScreenShareEvent);
     };
   }, [roomId, username, isInRoom]);
+
+  const handleToggleScreenShare = async () => {
+    if (screenShareState.isSharing) {
+      screenShare.stopScreenShare();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `sys-${Date.now()}`,
+          isSystem: true,
+          text: `🛑 ${username || 'Kamu'} menghentikan siaran layar.`,
+        },
+      ]);
+    } else {
+      const success = await screenShare.startScreenShare();
+      if (success) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            isSystem: true,
+            text: `📺 ${username || 'Kamu'} mulai membagikan layar secara langsung.`,
+          },
+        ]);
+      }
+    }
+  };
 
   const handleSelectNewVideo = (newUrl) => {
     setVideoUrl(newUrl);
@@ -220,6 +287,10 @@ export default function App() {
         hasPartnerInVoice={voiceState.hasPartnerInVoice}
         onToggleVoice={() => voiceChat.toggleVoice()}
         onToggleMute={() => voiceChat.toggleMute()}
+        isScreenSharing={screenShareState.isSharing}
+        hasActiveScreenShare={screenShareState.hasActiveShare}
+        onToggleScreenShare={handleToggleScreenShare}
+        canShareScreen={screenShare.isSupported()}
         onOpenChangeVideo={() => setIsChangeVideoOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onManualSync={handleManualSync}
@@ -240,24 +311,43 @@ export default function App() {
           {/* Top/Left: Video Player & Reactions */}
           <div className="lg:col-span-2 relative flex flex-col w-full flex-none lg:flex-auto min-h-0">
             <div className="relative w-full aspect-video lg:aspect-auto lg:flex-1 lg:h-full flex-none bg-black rounded-xl overflow-hidden shadow-xl border border-zinc-800/80">
-              <VideoPlayer
-                videoUrl={videoUrl}
-                roomId={roomId}
-                socket={socket}
-                onActivity={handleVideoActivity}
-              />
+              {screenShareState.hasActiveShare && screenShareState.stream ? (
+                <ScreenSharePlayer
+                  stream={screenShareState.stream}
+                  isPresenter={screenShareState.isPresenter}
+                  sharerName={screenShareState.sharerName}
+                  onStopSharing={() => screenShare.stopScreenShare()}
+                />
+              ) : (
+                <VideoPlayer
+                  videoUrl={videoUrl}
+                  roomId={roomId}
+                  socket={socket}
+                  onActivity={handleVideoActivity}
+                />
+              )}
               <ReactionsOverlay reactions={reactions} />
             </div>
 
             {/* Video Footer info */}
             <div className="mt-2.5 flex items-center justify-between text-xs text-zinc-500 px-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    screenShareState.hasActiveShare ? 'bg-amber-400 animate-ping' : 'bg-rose-500'
+                  }`}
+                ></span>
                 <span className="truncate max-w-xs md:max-w-md">
-                  Sumber: {videoUrl}
+                  {screenShareState.hasActiveShare
+                    ? `🔴 Siaran Layar Langsung: ${screenShareState.sharerName || 'Pasangan'}`
+                    : `Sumber: ${videoUrl}`}
                 </span>
               </div>
-              <span className="hidden sm:inline">Tekan Play/Pause untuk kendali bersama</span>
+              <span className="hidden sm:inline text-zinc-400 flex-shrink-0">
+                {screenShareState.hasActiveShare
+                  ? 'Kualitas HD & Audio Sistem Real-Time'
+                  : 'Tekan Play/Pause untuk kendali bersama'}
+              </span>
             </div>
           </div>
 
