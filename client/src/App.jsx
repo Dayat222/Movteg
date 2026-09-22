@@ -7,9 +7,11 @@ import ChangeVideoModal from './components/ChangeVideoModal';
 import JoinRoomModal from './components/JoinRoomModal';
 import SettingsModal from './components/SettingsModal';
 import ScreenSharePlayer from './components/ScreenSharePlayer';
+import UpdateModal from './components/UpdateModal';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
 import { screenShare } from './utils/screenShare';
+import { checkForUpdates } from './utils/appVersion';
 import { MessageSquare, Video, Film, Heart, Popcorn, Tv } from 'lucide-react';
 
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
@@ -46,6 +48,8 @@ export default function App() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(true);
   const [isChangeVideoOpen, setIsChangeVideoOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState(null);
 
   // Mobile layout tab
   const [partnerToast, setPartnerToast] = useState('');
@@ -110,6 +114,18 @@ export default function App() {
         ]);
       }
     };
+  }, []);
+
+  // Automatic update check on app launch (runs after 3 seconds)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const res = await checkForUpdates();
+      if (res.hasUpdate) {
+        setUpdateInfo(res);
+        setIsUpdateModalOpen(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Socket Connection and Event Listeners
@@ -388,6 +404,16 @@ export default function App() {
         isOpen={isSettingsOpen}
         isConnected={isConnected}
         onClose={() => setIsSettingsOpen(false)}
+        onOpenUpdateModal={(info) => {
+          setUpdateInfo(info);
+          setIsUpdateModalOpen(true);
+        }}
+      />
+
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        updateInfo={updateInfo}
       />
     </div>
   );

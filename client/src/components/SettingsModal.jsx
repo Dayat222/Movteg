@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { X, Server, CheckCircle2, Wifi, Zap } from 'lucide-react';
+import { X, Server, CheckCircle2, Wifi, Zap, RefreshCw, ArrowUpCircle } from 'lucide-react';
 import { SERVER_URL, updateServerUrl, resetToP2P, isP2PMode } from '../utils/socket';
+import { CURRENT_APP_VERSION, checkForUpdates } from '../utils/appVersion';
 
 export default function SettingsModal({
   isOpen,
   onClose,
   isConnected,
+  onOpenUpdateModal,
 }) {
   const [url, setUrl] = useState(isP2PMode ? '' : SERVER_URL);
   const [isSaved, setIsSaved] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateFeedback, setUpdateFeedback] = useState('');
 
   if (!isOpen) return null;
 
@@ -25,6 +29,26 @@ export default function SettingsModal({
 
   const handleUseP2P = () => {
     resetToP2P();
+  };
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateFeedback('');
+    try {
+      const res = await checkForUpdates();
+      if (res.hasUpdate) {
+        onClose();
+        if (typeof onOpenUpdateModal === 'function') {
+          onOpenUpdateModal(res);
+        }
+      } else {
+        setUpdateFeedback('✅ Aplikasi Anda sudah menggunakan versi terbaru!');
+      }
+    } catch (err) {
+      setUpdateFeedback('❌ Gagal memeriksa pembaruan. Pastikan terhubung ke internet.');
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
   return (
@@ -102,6 +126,30 @@ export default function SettingsModal({
               </button>
             </div>
           </form>
+
+          {/* App Version & Auto-Update Section */}
+          <div className="pt-3.5 border-t border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs text-zinc-300 font-semibold block">Versi Aplikasi</span>
+                <span className="text-[11px] text-zinc-500 font-mono">v{CURRENT_APP_VERSION} (Build Resmi)</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCheckUpdate}
+                disabled={isCheckingUpdate}
+                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-xl text-xs font-medium border border-zinc-700 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                <span>{isCheckingUpdate ? 'Memeriksa...' : 'Cek Pembaruan'}</span>
+              </button>
+            </div>
+            {updateFeedback && (
+              <p className="text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-1.5 rounded-lg animate-fade-in">
+                {updateFeedback}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

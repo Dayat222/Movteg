@@ -1,0 +1,12 @@
+{
+  "version": "1.1.0",
+  "releaseDate": "2026-09-22",
+  "title": "Movteg v1.1.0 - Fitur Bagi Layar & Ikon Baru 🎬✨",
+  "changelog": [
+    "Fitur baru: Bagi Layar (Screen Sharing) langsung dari laptop dengan audio tab",
+    "Ikon aplikasi bioskop & cinta neon baru yang modern",
+    "Perbaikan kestabilan pemutar video dan obrolan suara",
+    "Pemberitahuan pembaruan otomatis di dalam aplikasi"
+  ],
+  "downloadUrl": "https://github.com/Dayat222/Movteg/actions"
+}
