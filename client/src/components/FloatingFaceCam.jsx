@@ -59,11 +59,6 @@ export default function FloatingFaceCam({
     }
   }, [partnerStream]);
 
-  // Only show floating card if user or partner has camera active
-  if (!isVideoActive && !hasPartnerInCam) {
-    return null;
-  }
-
   useEffect(() => {
     const handleMove = (e) => {
       if (!isDragging.current) return;
@@ -101,6 +96,11 @@ export default function FloatingFaceCam({
       window.removeEventListener('touchcancel', handleUp);
     };
   }, []);
+
+  // Only show floating card if user or partner has camera active
+  if (!isVideoActive && !hasPartnerInCam) {
+    return null;
+  }
 
   const handleStart = (e) => {
     if (e.target.closest('button')) return;
