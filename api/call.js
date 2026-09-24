@@ -1,7 +1,7 @@
 import admin from 'firebase-admin';
 
 // Initialize Firebase Admin securely from Vercel Environment Variables
-if (!admin.apps.length) {
+if (!admin.getApps().length) {
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'targetToken is required' });
   }
 
-  if (!admin.apps.length) {
+  if (!admin.getApps().length) {
     return res.status(500).json({ error: 'Firebase Admin not configured on server (Missing FIREBASE_SERVICE_ACCOUNT env)' });
   }
 
