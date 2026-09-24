@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar';
 import VideoPlayer from './components/VideoPlayer';
 import ChatPanel from './components/ChatPanel';
