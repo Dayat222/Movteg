@@ -26,6 +26,7 @@ export default function Navbar({
   onInitiateCall,
   outgoingCall,
   onEndOutgoingCall,
+  canCall,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -114,7 +115,7 @@ export default function Navbar({
           <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 md:p-1">
             
             {/* Call / Ring Partner Button */}
-            {users.length > 1 && (
+            {canCall && (
               <button
                 onClick={outgoingCall ? onEndOutgoingCall : onInitiateCall}
                 title={outgoingCall ? 'Batalkan Panggilan' : 'Deringkan HP Pasangan'}

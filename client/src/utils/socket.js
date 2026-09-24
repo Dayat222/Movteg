@@ -122,6 +122,12 @@ class MqttSocketAdapter {
     if (!this.usersMap.has(senderId) || this.usersMap.get(senderId).fcmToken !== fcmToken) {
       this.usersMap.set(senderId, { id: senderId, username, isHost: false, fcmToken });
       
+      // Remember last partner's token for offline calling
+      if (fcmToken && senderId !== this.id) {
+        localStorage.setItem('movteg_last_partner_token', fcmToken);
+        localStorage.setItem('movteg_last_partner_name', username);
+      }
+
       this.emitLocal('user-joined', {
         username: username,
         users: Array.from(this.usersMap.values())

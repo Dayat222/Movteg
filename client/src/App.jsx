@@ -379,14 +379,23 @@ export default function App() {
     setPartnerToast('📞 Memanggil pasangan...');
 
     // Trigger Push Notification via Serverless Function
-    const partner = users.find(u => u.username !== username && u.fcmToken);
+    let targetToken = null;
+    let partner = users.find(u => u.username !== username && u.fcmToken);
+    
     if (partner && partner.fcmToken) {
+      targetToken = partner.fcmToken;
+    } else {
+      // Fallback to offline partner
+      targetToken = localStorage.getItem('movteg_last_partner_token');
+    }
+
+    if (targetToken) {
       try {
         await fetch('/api/call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            targetToken: partner.fcmToken,
+            targetToken: targetToken,
             callerName: username,
             roomId: roomId
           })
@@ -523,6 +532,7 @@ export default function App() {
         onInitiateCall={initiateCall}
         outgoingCall={outgoingCall}
         onEndOutgoingCall={endOutgoingCall}
+        canCall={users.length > 1 || !!localStorage.getItem('movteg_last_partner_token')}
       />
 
       {/* Floating Partner Join Notification */}
