@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 // Initialize Firebase Admin securely from Vercel Environment Variables
 if (!admin.apps.length) {
