@@ -84,6 +84,36 @@ class MqttSocketAdapter {
         
         // Avoid processing our own emitted actions for UI (like video-play)
         if (senderId === this.id) return;
+
+        // Translate call events
+        if (event === 'call-partner') {
+          const senderUser = this.usersMap.get(senderId);
+          this.emitLocal('incoming-call', {
+            callerName: senderUser ? senderUser.username : 'Pasangan',
+            callerId: senderId
+          });
+          return;
+        }
+        
+        if (event === 'answer-call') {
+          // data contains { accepted, callerId }
+          // only process if we were the original caller
+          if (data.callerId !== this.id) return;
+          const senderUser = this.usersMap.get(senderId);
+          this.emitLocal('call-answered', {
+            accepted: data.accepted,
+            responderName: senderUser ? senderUser.username : 'Pasangan'
+          });
+          return;
+        }
+
+        if (event === 'end-call') {
+          const senderUser = this.usersMap.get(senderId);
+          this.emitLocal('call-ended', {
+            by: senderUser ? senderUser.username : 'Pasangan'
+          });
+          return;
+        }
         
         this.emitLocal(event, data);
       } catch (e) {
