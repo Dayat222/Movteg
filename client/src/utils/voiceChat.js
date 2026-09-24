@@ -200,10 +200,7 @@ class CallManager {
     }
 
     try {
-      // Auto-start voice if not started yet so users can talk
-      if (!this.isActive) {
-        await this.startVoice();
-      }
+      const needAudio = !this.isActive;
 
       // IMPORTANT: On mobile, we MUST stop the existing camera track BEFORE requesting a new one, 
       // otherwise the hardware is locked and throws "Could not start video source".
@@ -215,26 +212,53 @@ class CallManager {
         }
       }
 
-      console.log(`[Call] Starting camera (facingMode: ${this.facingMode})...`);
-      const camStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: this.facingMode,
-          width: { ideal: 480 },
-          height: { ideal: 360 },
-          frameRate: { ideal: 24 },
-        },
-        audio: false,
-      });
+      console.log(`[Call] Starting camera (facingMode: ${this.facingMode}, needAudio: ${needAudio})...`);
+      
+      let camStream;
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: this.facingMode,
+            width: { ideal: 480 },
+            height: { ideal: 360 },
+            frameRate: { ideal: 24 },
+          },
+          audio: needAudio ? {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false,
+          } : false,
+        });
+      } catch (idealErr) {
+        console.warn('[Call] Ideal constraints failed, falling back to basic video/audio constraints', idealErr);
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: this.facingMode },
+          audio: needAudio,
+        });
+      }
 
       const videoTrack = camStream.getVideoTracks()[0];
+      const audioTrack = needAudio ? camStream.getAudioTracks()[0] : null;
 
       if (!this.localStream) {
-        this.localStream = new MediaStream([videoTrack]);
-      } else {
-        this.localStream.addTrack(videoTrack);
-        // Force React to detect object reference change
-        this.localStream = new MediaStream(this.localStream.getTracks());
+        this.localStream = new MediaStream();
       }
+
+      if (audioTrack) {
+        this.localStream.addTrack(audioTrack);
+        this.isActive = true;
+        this.isMuted = false;
+        this.activeVoiceUsers.add(socket.id);
+        socket.emit('voice-state', {
+          senderId: socket.id,
+          username: socket.username || 'Pasangan',
+          isActive: true,
+        });
+      }
+
+      this.localStream.addTrack(videoTrack);
+      // Force React state detection
+      this.localStream = new MediaStream(this.localStream.getTracks());
 
       this.isVideoActive = true;
       this.activeCamUsers.add(socket.id);

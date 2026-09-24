@@ -43,22 +43,58 @@ export default function FloatingFaceCam({
     }
   }
 
-  // Bind local video stream
+  // Callback refs to instantly attach stream & force play the exact millisecond video elements mount into DOM
+  const handleLocalVideoRef = (node) => {
+    localVideoRef.current = node;
+    if (node && localStream) {
+      node.muted = true;
+      node.defaultMuted = true;
+      node.playsInline = true;
+      node.setAttribute('playsinline', 'true');
+      node.setAttribute('webkit-playsinline', 'true');
+      if (node.srcObject !== localStream) {
+        node.srcObject = localStream;
+      }
+      node.play().catch(() => {});
+    }
+  };
+
+  const handleRemoteVideoRef = (node) => {
+    remoteVideoRef.current = node;
+    if (node && partnerStream) {
+      node.playsInline = true;
+      node.setAttribute('playsinline', 'true');
+      node.setAttribute('webkit-playsinline', 'true');
+      if (node.srcObject !== partnerStream) {
+        node.srcObject = partnerStream;
+      }
+      node.play().catch(() => {});
+    }
+  };
+
+  // Keep streams in sync on subsequent track changes
   useEffect(() => {
     if (localVideoRef.current) {
       if (localStream && isVideoActive && localStream.getVideoTracks().length > 0) {
-        localVideoRef.current.srcObject = localStream;
+        localVideoRef.current.muted = true;
+        localVideoRef.current.defaultMuted = true;
+        if (localVideoRef.current.srcObject !== localStream) {
+          localVideoRef.current.srcObject = localStream;
+        }
+        localVideoRef.current.play().catch(() => {});
       } else {
         localVideoRef.current.srcObject = null;
       }
     }
   }, [localStream, isVideoActive]);
 
-  // Bind remote video stream
   useEffect(() => {
     if (remoteVideoRef.current) {
       if (partnerStream) {
-        remoteVideoRef.current.srcObject = partnerStream;
+        if (remoteVideoRef.current.srcObject !== partnerStream) {
+          remoteVideoRef.current.srcObject = partnerStream;
+        }
+        remoteVideoRef.current.play().catch(() => {});
       } else {
         remoteVideoRef.current.srcObject = null;
       }
@@ -129,9 +165,10 @@ export default function FloatingFaceCam({
             {/* Partner Video Stream */}
             {hasPartnerInCam && partnerStream ? (
               <video
-                ref={remoteVideoRef}
+                ref={handleRemoteVideoRef}
                 autoPlay
                 playsInline
+                webkit-playsinline="true"
                 controls={false}
                 className="w-full h-full object-cover pointer-events-none"
               />
@@ -150,9 +187,10 @@ export default function FloatingFaceCam({
             {isVideoActive && localStream && (
               <div className="absolute bottom-2 right-2 w-16 h-20 md:w-20 md:h-24 rounded-xl overflow-hidden border-2 border-rose-500 shadow-xl bg-black pointer-events-none">
                 <video
-                  ref={localVideoRef}
+                  ref={handleLocalVideoRef}
                   autoPlay
                   playsInline
+                  webkit-playsinline="true"
                   muted
                   controls={false}
                   className={`w-full h-full object-cover ${facingMode !== 'environment' ? 'scale-x-[-1]' : ''}`}
