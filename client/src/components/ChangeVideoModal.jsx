@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Link2, Play, Popcorn } from 'lucide-react';
-import { isYouTubeUrl } from '../utils/youtube';
+import { isYouTubeUrl, getYouTubeId } from '../utils/youtube';
 
 const PRESET_MOVIES = [
   {
@@ -50,12 +50,20 @@ export default function ChangeVideoModal({
 
   const handleSubmit = (e) => {
     e?.preventDefault();
-    if (!inputUrl.trim()) {
+    let cleaned = inputUrl.trim();
+    if (!cleaned) {
       setError('Masukkan link video terlebih dahulu!');
       return;
     }
+
+    // Auto-normalize any mobile / messy YouTube URL to standard embeddable format
+    const ytId = getYouTubeId(cleaned);
+    if (ytId) {
+      cleaned = `https://www.youtube.com/watch?v=${ytId}`;
+    }
+
     setError('');
-    onSelectVideo(inputUrl.trim());
+    onSelectVideo(cleaned);
     onClose();
   };
 

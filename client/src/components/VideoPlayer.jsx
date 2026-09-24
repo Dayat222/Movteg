@@ -64,21 +64,35 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!isYouTube || !ytVideoId) return;
 
+    // If YouTube Player is already initialized, just load the new video without tearing down DOM!
+    if (ytPlayerRef.current && isYtReady && typeof ytPlayerRef.current.loadVideoById === 'function') {
+      try {
+        ytPlayerRef.current.loadVideoById(ytVideoId);
+        return;
+      } catch (e) {
+        console.warn('loadVideoById failed, recreating player:', e);
+      }
+    }
+
     let destroyed = false;
 
     const initYouTubePlayer = () => {
-      if (!window.YT || !window.YT.Player) return;
+      if (!window.YT || !window.YT.Player || !ytContainerRef.current) return;
 
-      // Clean up previous instance
-      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+      // Clean up previous instance safely
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.destroy === 'function') {
         try {
           ytPlayerRef.current.destroy();
-        } catch {
-          // ignore
-        }
+        } catch (e) {}
       }
 
-      ytPlayerRef.current = new window.YT.Player('youtube-player-container', {
+      // Recreate mount node inside container so React ref remains stable
+      ytContainerRef.current.innerHTML = '';
+      const mountNode = document.createElement('div');
+      mountNode.className = 'w-full h-full aspect-video';
+      ytContainerRef.current.appendChild(mountNode);
+
+      ytPlayerRef.current = new window.YT.Player(mountNode, {
         videoId: ytVideoId,
         playerVars: {
           autoplay: 0,
@@ -87,13 +101,12 @@ export default function VideoPlayer({
           modestbranding: 1,
           enablejsapi: 1,
           playsinline: 1,
-          ...(isLocalhost ? {} : { origin: window.location.origin }),
         },
         events: {
           onReady: (event) => {
             if (destroyed) return;
             setIsYtReady(true);
-            setDuration(event.target.getDuration() || 0);
+            setDuration(event.target.getDuration ? (event.target.getDuration() || 0) : 0);
           },
           onStateChange: (event) => {
             if (destroyed) return;
@@ -105,7 +118,7 @@ export default function VideoPlayer({
             }
 
             const player = event.target;
-            const time = player.getCurrentTime();
+            const time = player.getCurrentTime ? player.getCurrentTime() : 0;
 
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
@@ -132,13 +145,6 @@ export default function VideoPlayer({
 
     return () => {
       destroyed = true;
-      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
-        try {
-          ytPlayerRef.current.destroy();
-        } catch {
-          // ignore
-        }
-      }
     };
   }, [isYouTube, ytVideoId, roomId, socket]);
 
@@ -151,7 +157,11 @@ export default function VideoPlayer({
     if (!video || !videoUrl) return;
 
     if (isHlsUrl(videoUrl)) {
-      if (Hls.isSupported()) {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // iOS Safari native HLS (faster, hardware accelerated, reliable)
+        video.src = videoUrl;
+        video.load();
+      } else if (Hls.isSupported()) {
         if (hlsRef.current) {
           hlsRef.current.destroy();
         }
@@ -159,9 +169,6 @@ export default function VideoPlayer({
         hls.loadSource(videoUrl);
         hls.attachMedia(video);
         hlsRef.current = hls;
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = videoUrl;
-        video.load();
       }
     } else {
       video.src = videoUrl;
@@ -371,7 +378,7 @@ export default function VideoPlayer({
       <div className="w-full h-full flex items-center justify-center relative">
         {isYouTube ? (
           <div className="w-full h-full flex items-center justify-center">
-            <div id="youtube-player-container" className="w-full h-full aspect-video"></div>
+            <div ref={ytContainerRef} className="w-full h-full aspect-video flex items-center justify-center"></div>
           </div>
         ) : (
           <video
@@ -381,7 +388,6 @@ export default function VideoPlayer({
             playsInline
             webkit-playsinline="true"
             preload="auto"
-            crossOrigin="anonymous"
             onPlay={handleHtml5Play}
             onPause={handleHtml5Pause}
             onSeeking={() => { isSeekingRef.current = true; }}

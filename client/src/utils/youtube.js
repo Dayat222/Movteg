@@ -2,10 +2,9 @@
 export function getYouTubeId(url) {
   if (!url || typeof url !== 'string') return null;
 
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
-  const match = url.match(regExp);
-
-  return match && match[2].length === 11 ? match[2] : null;
+  // Handles standard, short, shorts, embed, live, and messy share text from mobile
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/i);
+  return match ? match[1] : null;
 }
 
 export function isYouTubeUrl(url) {
