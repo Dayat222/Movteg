@@ -2,8 +2,38 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import admin from 'firebase-admin';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
+
+// Initialize Firebase Admin securely
+try {
+  let serviceAccount = null;
+  const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
+  
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else if (fs.existsSync(serviceAccountPath)) {
+    serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  }
+
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('🔥 Firebase Admin initialized successfully');
+  } else {
+    console.warn('⚠️ No service account provided, Push Notifications disabled');
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize Firebase Admin:', error);
+}
+
+// In-memory store for user FCM tokens (username -> token)
+const fcmTokens = new Map();
+
 app.use(cors());
 app.use(express.json());
 
@@ -185,12 +215,58 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('call-partner', ({ roomId }) => {
+  socket.on('register-fcm-token', ({ username, token }) => {
+    if (username && token) {
+      fcmTokens.set(username, token);
+      console.log(`[FCM] Registered token for user ${username}`);
+    }
+  });
+
+  socket.on('call-partner', async ({ roomId }) => {
     if (!roomId) return;
+    
+    // Send in-app socket ringing event
     socket.to(roomId).emit('incoming-call', {
       callerName: currentUsername,
       callerId: socket.id
     });
+
+    // Also send FCM Push Notification to wake up partner's device
+    if (admin.apps.length > 0) {
+      const room = rooms.get(roomId);
+      if (room) {
+        for (const [id, user] of room.users.entries()) {
+          if (id !== socket.id) {
+            const partnerToken = fcmTokens.get(user.username);
+            if (partnerToken) {
+              try {
+                await admin.messaging().send({
+                  token: partnerToken,
+                  notification: {
+                    title: '📞 Panggilan Video Movteg',
+                    body: `${currentUsername} memanggilmu! Ketuk untuk menjawab.`,
+                  },
+                  data: {
+                    room: roomId,
+                    action: 'incoming_call'
+                  },
+                  android: {
+                    priority: 'high',
+                  }
+                });
+                console.log(`[FCM] Sent call push notification to ${user.username}`);
+              } catch (error) {
+                console.error(`[FCM] Failed to send to ${user.username}:`, error);
+                // If token invalid, remove it
+                if (error.code === 'messaging/registration-token-not-registered') {
+                  fcmTokens.delete(user.username);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   });
 
   socket.on('answer-call', ({ roomId, accepted, callerId }) => {

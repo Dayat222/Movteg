@@ -16,6 +16,9 @@ import { screenShare } from './utils/screenShare';
 import { checkForUpdates } from './utils/appVersion';
 import { MessageSquare, Video, Film, Heart, Popcorn, Tv } from 'lucide-react';
 
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 export default function App() {
@@ -168,6 +171,51 @@ export default function App() {
       }
     };
   }, []);
+
+  // Push Notifications Setup
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && username) {
+      const registerPush = async () => {
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+        if (permStatus.receive !== 'granted') {
+          console.warn('User denied push notification permissions');
+          return;
+        }
+
+        await PushNotifications.register();
+
+        PushNotifications.addListener('registration', (token) => {
+          console.log('Push registration success, token: ' + token.value);
+          if (socket.connected) {
+            socket.emit('register-fcm-token', { username, token: token.value });
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('Error on push registration: ' + JSON.stringify(error));
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('Push received: ', notification);
+          // If we receive push while app is open, we can show toast or handle it
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          console.log('Push action performed: ', action);
+          const data = action.notification.data;
+          if (data && data.room) {
+            const fallbackName = localStorage.getItem('movteg_username') || 'Pasangan';
+            handleJoin(data.room, fallbackName, false);
+          }
+        });
+      };
+      
+      registerPush();
+    }
+  }, [username]);
 
   // Automatic update check on app launch (runs after 3 seconds)
   useEffect(() => {
@@ -325,11 +373,28 @@ export default function App() {
   }, [roomId, username, isInRoom]);
 
   // Call Handlers
-  const initiateCall = () => {
+  const initiateCall = async () => {
     socket.emit('call-partner', { roomId });
     setOutgoingCall(true);
     setPartnerToast('📞 Memanggil pasangan...');
-    // Optional: play outgoing ringtone
+
+    // Trigger Push Notification via Serverless Function
+    const partner = users.find(u => u.username !== username && u.fcmToken);
+    if (partner && partner.fcmToken) {
+      try {
+        await fetch('/api/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetToken: partner.fcmToken,
+            callerName: username,
+            roomId: roomId
+          })
+        });
+      } catch (err) {
+        console.error('Failed to trigger push notification:', err);
+      }
+    }
   };
 
   const acceptCall = () => {

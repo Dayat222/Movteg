@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1067838844954",
+    "firebase_url": "https://my-projek-76a43-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "my-projek-76a43",
+    "storage_bucket": "my-projek-76a43.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1067838844954:android:d703a672bd2549260be1a3",
+        "android_client_info": {
+          "package_name": "com.movteg.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtaGNyXrtTdAHOCIozPlJrEV55o2d0rUk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

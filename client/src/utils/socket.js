@@ -10,7 +10,8 @@ class MqttSocketAdapter {
     this.listeners = new Map();
     this.connected = false;
     this.id = Math.random().toString(36).substr(2, 9);
-    this.usersMap = new Map(); // id -> { id, username }
+    this.usersMap = new Map(); // id -> { id, username, fcmToken }
+    this.fcmToken = localStorage.getItem('fcmToken') || null;
     
     // Video state tracking for late joiners
     this.currentVideoUrl = null;
@@ -46,7 +47,7 @@ class MqttSocketAdapter {
         
         // Handle presence and discovery
         if (event === 'presence') {
-          this.handlePresence(senderId, data.username, data.videoUrl);
+          this.handlePresence(senderId, data.username, data.videoUrl, data.fcmToken);
           if (senderId !== this.id) {
              // Acknowledge new peers so they know we exist too (if they just joined)
              if (data.isNew) {
@@ -102,7 +103,14 @@ class MqttSocketAdapter {
     });
   }
 
-  handlePresence(senderId, username, videoUrl) {
+  setFcmToken(token) {
+    this.fcmToken = token;
+    if (this.connected && this.roomId) {
+       this.broadcastPresence(false);
+    }
+  }
+
+  handlePresence(senderId, username, videoUrl, fcmToken) {
     if (!username) return;
     
     // If they have a video url, update ours if we don't have one
@@ -111,8 +119,8 @@ class MqttSocketAdapter {
         this.emitLocal('room-state', { videoUrl });
     }
 
-    if (!this.usersMap.has(senderId)) {
-      this.usersMap.set(senderId, { id: senderId, username, isHost: false });
+    if (!this.usersMap.has(senderId) || this.usersMap.get(senderId).fcmToken !== fcmToken) {
+      this.usersMap.set(senderId, { id: senderId, username, isHost: false, fcmToken });
       
       this.emitLocal('user-joined', {
         username: username,
@@ -130,7 +138,8 @@ class MqttSocketAdapter {
        data: { 
          username: this.username, 
          isNew: isNew,
-         videoUrl: this.currentVideoUrl
+         videoUrl: this.currentVideoUrl,
+         fcmToken: this.fcmToken
        }
      });
      this.client.publish(topic, payload, { qos: 0 });
