@@ -1,10 +1,11 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const admin = require('firebase-admin');
+const { initializeApp, cert, getApps } = require('firebase-admin/app');
+const { getMessaging } = require('firebase-admin/messaging');
 
-function getFirebaseAdmin() {
-  if (admin.getApps().length) {
-    return { ok: true };
+function getFirebaseMessaging() {
+  if (getApps().length > 0) {
+    return { ok: true, messaging: getMessaging() };
   }
 
   const rawEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -34,12 +35,12 @@ function getFirebaseAdmin() {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+    const app = initializeApp({
+      credential: cert(serviceAccount)
     });
 
     console.log('[Firebase] Admin successfully initialized');
-    return { ok: true };
+    return { ok: true, messaging: getMessaging(app) };
   } catch (err) {
     console.error('[Firebase] Init error:', err);
     return { 
@@ -72,18 +73,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'targetToken is required' });
   }
 
-  const fbStatus = getFirebaseAdmin();
-  if (!fbStatus.ok) {
+  const fb = getFirebaseMessaging();
+  if (!fb.ok) {
     return res.status(500).json({ 
       error: 'Firebase Admin not configured on server', 
-      reason: fbStatus.reason,
-      envLength: fbStatus.envLength,
-      envStart: fbStatus.envStart
+      reason: fb.reason,
+      envLength: fb.envLength,
+      envStart: fb.envStart
     });
   }
 
   try {
-    const response = await admin.messaging().send({
+    const response = await fb.messaging.send({
       token: targetToken,
       notification: {
         title: '📞 Panggilan Video Movteg',
