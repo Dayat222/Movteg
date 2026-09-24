@@ -98,10 +98,9 @@ export default async function handler(req, res) {
       android: {
         priority: 'high',
         notification: {
+          sound: 'default',
           channelId: 'calls_v2',
           priority: 'max',
-          defaultSound: true,
-          defaultVibrateTimings: true,
           visibility: 'public'
         }
       },
