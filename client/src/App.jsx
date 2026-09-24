@@ -31,18 +31,22 @@ export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('movteg_username') || '');
   const [isInRoom, setIsInRoom] = useState(false);
 
-  const isMobileWeb = typeof window !== 'undefined' &&
-    /Android|iPhone|iPad/i.test(navigator.userAgent) &&
+  const isAndroidWeb = typeof window !== 'undefined' &&
+    /Android/i.test(navigator.userAgent) &&
     !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 
-  // Auto-redirect to APK on mobile browser if not already tried
+  const isIOS = typeof window !== 'undefined' &&
+    /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+    !window.navigator.standalone;
+
+  // Auto-redirect to APK ONLY on Android mobile browser if not already tried
   useEffect(() => {
-    if (isMobileWeb && roomId && !urlParams.get('fallback')) {
+    if (isAndroidWeb && roomId && !urlParams.get('fallback')) {
       const fallbackUrl = encodeURIComponent(`https://movteg.vercel.app/?room=${roomId}&fallback=1`);
       const intentUrl = `intent://movteg.vercel.app/?room=${roomId}#Intent;scheme=https;package=com.movteg.app;S.browser_fallback_url=${fallbackUrl};end`;
       window.location.replace(intentUrl);
     }
-  }, [isMobileWeb, roomId]);
+  }, [isAndroidWeb, roomId]);
 
   const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO);
   const [users, setUsers] = useState([]);
@@ -482,8 +486,8 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col selection:bg-rose-500 selection:text-white">
-      {/* Smart Banner: Open in Movteg App for Mobile Browser visitors */}
-      {isMobileWeb && (
+      {/* Smart Banner: Android Open in APK */}
+      {isAndroidWeb && (
         <div className="bg-gradient-to-r from-rose-950 via-zinc-900 to-rose-950 border-b border-rose-500/30 px-3 py-2 flex items-center justify-between z-50 text-xs">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-lg bg-rose-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-rose-950">
@@ -500,6 +504,18 @@ export default function App() {
           >
             Buka di App
           </a>
+        </div>
+      )}
+
+      {/* Smart Banner: iOS Safari Home Screen Tip */}
+      {isIOS && (
+        <div className="bg-gradient-to-r from-zinc-900 via-rose-950/60 to-zinc-900 border-b border-rose-500/30 px-3 py-1.5 flex items-center justify-between z-50 text-[11px] text-zinc-300">
+          <div className="flex items-center gap-1.5 truncate">
+            <span>💡</span>
+            <span className="truncate">
+              Di iPhone: Tekan tombol <strong>Bagikan (Share)</strong> ➜ <strong>Tambahkan ke Layar Utama</strong> untuk versi aplikasi penuh!
+            </span>
+          </div>
         </div>
       )}
 
