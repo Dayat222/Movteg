@@ -204,6 +204,20 @@ export default function Navbar({
         {/* Sync Button */}
         {roomId && (
           <button
+            onClick={() => {
+              import('../utils/ringtonePlayer').then(m => {
+                m.ringtonePlayer.play();
+                setTimeout(() => m.ringtonePlayer.stop(), 2000);
+              });
+            }}
+            title="Tes Suara (Buka Blokir Audio)"
+            className="flex p-1.5 md:p-2 text-rose-400 hover:text-rose-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer animate-pulse"
+          >
+            🔊 Tes
+          </button>
+        )}
+        {roomId && (
+          <button
             onClick={onManualSync}
             title="Sinkronkan Ulang Video"
             className="hidden sm:flex p-1.5 md:p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all cursor-pointer"
