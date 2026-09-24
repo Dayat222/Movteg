@@ -38,23 +38,16 @@ class RingtonePlayer {
     this.init();
 
     // 1. Try playing local WAV file
-    let audioPlayed = false;
     if (this.audio) {
       this.audio.currentTime = 0;
-      this.audio.play()
-        .then(() => {
-          audioPlayed = true;
-          console.log('[Ringtone] Playing via HTML Audio');
-        })
-        .catch((err) => {
-          console.warn('[Ringtone] HTML Audio play error/blocked, falling back to Web Audio synth:', err);
-          this.startSynth();
-        });
-    } else {
-      this.startSynth();
+      this.audio.play().catch(e => console.warn('Audio play error:', e));
     }
+    
+    // 2. ALWAYS play the Web Audio synth as a reliable fallback
+    // (Bypasses IDM or downloader extensions that hijack <audio> tags)
+    this.startSynth();
 
-    // 2. Start Haptic Vibration (repeats every 2.5s)
+    // 3. Start Haptic Vibration
     this.startVibration();
   }
 
