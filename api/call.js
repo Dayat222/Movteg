@@ -100,7 +100,17 @@ export default async function handler(req, res) {
         notification: {
           sound: 'default',
           channelId: 'calls',
-          priority: 'max'
+          priority: 'max',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          visibility: 'public'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default'
+          }
         }
       }
     });

@@ -191,6 +191,23 @@ export default function App() {
           return;
         }
 
+        // Create high-priority notification channel for calls on Android
+        try {
+          await PushNotifications.createChannel({
+            id: 'calls',
+            name: 'Panggilan Masuk',
+            description: 'Notifikasi saat pasangan memanggil',
+            importance: 5,
+            visibility: 1,
+            sound: 'default',
+            vibration: true,
+            lights: true,
+            lightColor: '#e11d48'
+          });
+        } catch (channelErr) {
+          console.warn('Channel creation error:', channelErr);
+        }
+
         await PushNotifications.register();
 
         PushNotifications.addListener('registration', (token) => {
@@ -207,15 +224,28 @@ export default function App() {
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
           console.log('Push received: ', notification);
-          // If we receive push while app is open, we can show toast or handle it
+          // If we receive push while app is open, play ringtone & show incoming modal
+          ringtonePlayer.play();
+          const caller = notification.data?.callerName || 'Pasangan';
+          const incomingRoom = notification.data?.room;
+          setIncomingCall({
+            callerId: 'remote',
+            callerName: caller,
+            roomId: incomingRoom
+          });
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
           console.log('Push action performed: ', action);
-          const data = action.notification.data;
+          const data = action.notification?.data;
           if (data && data.room) {
             const fallbackName = localStorage.getItem('movteg_username') || 'Pasangan';
             handleJoin(data.room, fallbackName, false);
+            setTimeout(() => {
+              if (!voiceChat.isVideoActive) {
+                voiceChat.startVideo();
+              }
+            }, 1000);
           }
         });
       };
