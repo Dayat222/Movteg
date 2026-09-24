@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal, X } from 'lucide-react';
 
 export default function FloatingFaceCam({
   localStream,
@@ -22,11 +22,14 @@ export default function FloatingFaceCam({
   const nodeRef = useRef(null);
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // Extract first remote stream with video track
+  // Extract first remote stream with active live video track
   let partnerStream = null;
   if (remoteStreams && remoteStreams.size > 0) {
     for (const [id, stream] of remoteStreams.entries()) {
-      if (stream.getVideoTracks().length > 0) {
+      const activeVideoTracks = stream.getVideoTracks().filter(
+        (track) => track.readyState === 'live' && track.enabled
+      );
+      if (activeVideoTracks.length > 0) {
         partnerStream = stream;
         break;
       }
@@ -55,8 +58,11 @@ export default function FloatingFaceCam({
     }
   }, [partnerStream]);
 
-  // Only show floating card if user or partner has camera active
-  if (!isVideoActive && !hasPartnerInCam) {
+  // Only show floating card if:
+  // 1. Local user's camera is active, OR
+  // 2. Partner's camera is active AND partner actually has a live video stream
+  const hasLivePartnerVideo = Boolean(hasPartnerInCam && partnerStream);
+  if (!isVideoActive && !hasLivePartnerVideo) {
     return null;
   }
 
@@ -79,14 +85,24 @@ export default function FloatingFaceCam({
                 {partnerName || 'Pasangan'} 💕
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <GripHorizontal className="w-4 h-4 text-zinc-500 pointer-events-none" />
+            <div className="flex items-center gap-1">
+              <GripHorizontal className="w-4 h-4 text-zinc-500 pointer-events-none mr-0.5" />
               <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
                 className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
                 title={isMinimized ? 'Perbesar' : 'Minimalkan'}
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onToggleVideo) onToggleVideo();
+                }}
+                className="text-zinc-400 hover:text-rose-400 p-0.5 rounded transition-colors cursor-pointer ml-0.5"
+                title="Tutup Kamera Melayang"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

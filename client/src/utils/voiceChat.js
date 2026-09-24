@@ -553,6 +553,13 @@ class CallManager {
       }
     } else {
       this.activeCamUsers.delete(senderId);
+      if (this.remoteStreams.has(senderId)) {
+        const stream = this.remoteStreams.get(senderId);
+        stream.getVideoTracks().forEach((t) => {
+          t.stop();
+          stream.removeTrack(t);
+        });
+      }
       if (!this.activeVoiceUsers.has(senderId)) {
         this.cleanupPeer(senderId);
       }
@@ -583,12 +590,17 @@ class CallManager {
   }
 
   handleUserLeft({ username }) {
+    this.activeCamUsers.clear();
+    this.activeVoiceUsers.clear();
     this.peers.forEach((pc, targetId) => {
       this.cleanupPeer(targetId);
     });
+    this._notifyStateChange();
   }
 
   cleanupPeer(targetId) {
+    this.activeCamUsers.delete(targetId);
+    this.activeVoiceUsers.delete(targetId);
     const pc = this.peers.get(targetId);
     if (pc) {
       pc.ontrack = null;
