@@ -14,10 +14,18 @@ class RingtonePlayer {
   init() {
     if (!this.audio && typeof window !== 'undefined') {
       try {
-        this.audio = new Audio('/ringtone.wav');
-        this.audio.loop = true;
+        let el = document.getElementById('movteg-ringtone-audio');
+        if (!el) {
+          el = document.createElement('audio');
+          el.id = 'movteg-ringtone-audio';
+          el.src = '/ringtone.wav';
+          el.loop = true;
+          el.preload = 'auto';
+          el.style.display = 'none';
+          document.body.appendChild(el);
+        }
+        this.audio = el;
         this.audio.volume = 1.0;
-        this.audio.preload = 'auto';
       } catch (e) {
         console.warn('[Ringtone] HTML Audio init failed:', e);
       }
