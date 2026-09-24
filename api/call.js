@@ -15,7 +15,15 @@ function getFirebaseAdmin() {
   try {
     let serviceAccount;
     if (typeof rawEnv === 'string') {
-      const trimmed = rawEnv.trim();
+      let trimmed = rawEnv.trim();
+      // If user pasted "KEY=VALUE" (e.g. FIREBASE_SERVICE_ACCOUNT={"type":...})
+      if (trimmed.includes('=') && !trimmed.startsWith('{')) {
+        trimmed = trimmed.slice(trimmed.indexOf('=') + 1).trim();
+      }
+      // If user wrapped the entire JSON in single or double quotes
+      if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+        trimmed = trimmed.slice(1, -1).trim();
+      }
       serviceAccount = JSON.parse(trimmed);
     } else {
       serviceAccount = rawEnv;
@@ -34,7 +42,12 @@ function getFirebaseAdmin() {
     return { ok: true };
   } catch (err) {
     console.error('[Firebase] Init error:', err);
-    return { ok: false, reason: err.message || String(err) };
+    return { 
+      ok: false, 
+      reason: err.message || String(err),
+      envLength: typeof rawEnv === 'string' ? rawEnv.length : 0,
+      envStart: typeof rawEnv === 'string' ? rawEnv.substring(0, 35) : 'not_string'
+    };
   }
 }
 
@@ -63,7 +76,9 @@ export default async function handler(req, res) {
   if (!fbStatus.ok) {
     return res.status(500).json({ 
       error: 'Firebase Admin not configured on server', 
-      reason: fbStatus.reason 
+      reason: fbStatus.reason,
+      envLength: fbStatus.envLength,
+      envStart: fbStatus.envStart
     });
   }
 
