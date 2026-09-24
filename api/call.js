@@ -2,20 +2,39 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin securely from Vercel Environment Variables
-if (!admin.getApps().length) {
+function getFirebaseAdmin() {
+  if (admin.getApps().length) {
+    return { ok: true };
+  }
+
+  const rawEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!rawEnv) {
+    return { ok: false, reason: 'process.env.FIREBASE_SERVICE_ACCOUNT is empty or undefined' };
+  }
+
   try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      console.log('Firebase Admin initialized for Vercel Serverless');
+    let serviceAccount;
+    if (typeof rawEnv === 'string') {
+      const trimmed = rawEnv.trim();
+      serviceAccount = JSON.parse(trimmed);
     } else {
-      console.warn('FIREBASE_SERVICE_ACCOUNT is not set in Vercel Env!');
+      serviceAccount = rawEnv;
     }
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
+
+    // If private_key has literal escaped \n, replace them with actual newlines
+    if (serviceAccount && serviceAccount.private_key && serviceAccount.private_key.includes('\\n')) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+
+    console.log('[Firebase] Admin successfully initialized');
+    return { ok: true };
+  } catch (err) {
+    console.error('[Firebase] Init error:', err);
+    return { ok: false, reason: err.message || String(err) };
   }
 }
 
@@ -34,14 +53,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { targetToken, callerName, roomId } = req.body;
+  const { targetToken, callerName, roomId } = req.body || {};
 
   if (!targetToken) {
     return res.status(400).json({ error: 'targetToken is required' });
   }
 
-  if (!admin.getApps().length) {
-    return res.status(500).json({ error: 'Firebase Admin not configured on server (Missing FIREBASE_SERVICE_ACCOUNT env)' });
+  const fbStatus = getFirebaseAdmin();
+  if (!fbStatus.ok) {
+    return res.status(500).json({ 
+      error: 'Firebase Admin not configured on server', 
+      reason: fbStatus.reason 
+    });
   }
 
   try {
@@ -53,17 +76,25 @@ export default async function handler(req, res) {
       },
       data: {
         room: roomId || '',
-        action: 'incoming_call'
+        action: 'incoming_call',
+        callerName: callerName || 'Pasangan'
       },
       android: {
         priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'calls',
+          priority: 'max'
+        }
       }
     });
 
-    console.log('Successfully sent message:', response);
-    return res.status(200).json({ success: true, response });
-  } catch (error) {
-    console.error('Error sending message:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(200).json({ success: true, messageId: response });
+  } catch (sendError) {
+    console.error('[FCM] Send error:', sendError);
+    return res.status(500).json({ 
+      error: 'Failed to send push notification', 
+      details: sendError.message || String(sendError) 
+    });
   }
 }
