@@ -10,6 +10,7 @@ import ScreenSharePlayer from './components/ScreenSharePlayer';
 import UpdateModal from './components/UpdateModal';
 import FloatingFaceCam from './components/FloatingFaceCam';
 import IncomingCallOverlay from './components/IncomingCallOverlay';
+import { ringtonePlayer } from './utils/ringtonePlayer';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
 import { screenShare } from './utils/screenShare';
@@ -79,12 +80,6 @@ export default function App() {
   // Call feature state
   const [incomingCall, setIncomingCall] = useState(null);
   const [outgoingCall, setOutgoingCall] = useState(false);
-  const ringtoneRef = useRef(null);
-
-  useEffect(() => {
-    ringtoneRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg');
-    ringtoneRef.current.loop = true;
-  }, []);
 
   // Join Room Handler
   const handleJoin = (targetRoomId, enteredName, isGuest = false) => {
@@ -317,14 +312,12 @@ export default function App() {
 
     const handleIncomingCall = (data) => {
       setIncomingCall(data);
-      if (ringtoneRef.current) {
-        ringtoneRef.current.currentTime = 0;
-        ringtoneRef.current.play().catch(e => console.log('Autoplay blocked:', e));
-      }
+      ringtonePlayer.play();
     };
 
     const handleCallAnswered = (data) => {
       setOutgoingCall(false);
+      ringtonePlayer.stop();
       if (data.accepted) {
         setPartnerToast(`📞 ${data.responderName} menerima panggilan!`);
         if (!voiceChat.isVideoActive) {
@@ -337,10 +330,7 @@ export default function App() {
 
     const handleCallEnded = () => {
       setIncomingCall(null);
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause();
-        ringtoneRef.current.currentTime = 0;
-      }
+      ringtonePlayer.stop();
     };
 
     socket.on('connect', handleConnect);
@@ -410,7 +400,7 @@ export default function App() {
     if (incomingCall) {
       socket.emit('answer-call', { roomId, accepted: true, callerId: incomingCall.callerId });
       setIncomingCall(null);
-      if (ringtoneRef.current) ringtoneRef.current.pause();
+      ringtonePlayer.stop();
       
       // Auto-start video
       if (!voiceChat.isVideoActive) {
@@ -423,7 +413,7 @@ export default function App() {
     if (incomingCall) {
       socket.emit('answer-call', { roomId, accepted: false, callerId: incomingCall.callerId });
       setIncomingCall(null);
-      if (ringtoneRef.current) ringtoneRef.current.pause();
+      ringtonePlayer.stop();
     }
   };
 

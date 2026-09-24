@@ -1,9 +1,26 @@
-import React from 'react';
-import { Phone, PhoneOff, Video } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react';
+import { ringtonePlayer } from '../utils/ringtonePlayer';
 
 export default function IncomingCallOverlay({ callerName, onAccept, onDecline }) {
+  useEffect(() => {
+    ringtonePlayer.play();
+    return () => {
+      ringtonePlayer.stop();
+    };
+  }, []);
+
+  const handleOverlayTouch = () => {
+    // If browser suspended audio due to autoplay restrictions, a tap resumes it immediately
+    ringtonePlayer.play();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div 
+      onClick={handleOverlayTouch}
+      onTouchStart={handleOverlayTouch}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in select-none"
+    >
       <div className="flex flex-col items-center max-w-sm w-full mx-4">
         {/* Pulsing Avatar/Icon */}
         <div className="relative mb-8">
@@ -16,8 +33,14 @@ export default function IncomingCallOverlay({ callerName, onAccept, onDecline })
         </div>
         
         {/* Caller Info */}
-        <h2 className="text-2xl font-bold text-white mb-2">{callerName || 'Pasangan'}</h2>
-        <p className="text-zinc-400 mb-12 animate-pulse">Memanggil untuk Video Call...</p>
+        <h2 className="text-2xl font-bold text-white mb-1">{callerName || 'Pasangan'}</h2>
+        <p className="text-zinc-400 text-sm mb-3">Panggilan Video Masuk</p>
+
+        {/* Ringing Sound Indicator */}
+        <div className="flex items-center gap-2 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 px-3.5 py-1.5 rounded-full mb-10 shadow-lg shadow-rose-950/40">
+          <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
+          <span className="font-medium animate-pulse">Berdering & Bergetar...</span>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-center gap-12 w-full">
