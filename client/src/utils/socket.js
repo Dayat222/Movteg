@@ -114,6 +114,22 @@ class MqttSocketAdapter {
           });
           return;
         }
+
+        if (event === 'ping-room') {
+          if (this.roomId && this.client) {
+            const topic = `movteg/room/${this.roomId}`;
+            this.client.publish(topic, JSON.stringify({
+              senderId: this.id,
+              event: 'pong-room',
+              data: {
+                requestId: data?.requestId,
+                hostName: this.username || 'Pasangan',
+                usersCount: this.usersMap.size
+              }
+            }), { qos: 0 });
+          }
+          return;
+        }
         
         this.emitLocal(event, data);
       } catch (e) {
@@ -278,7 +294,56 @@ class MqttSocketAdapter {
        if (err) console.error('[MQTT] Publish error', err);
     });
   }
-  
+
+  checkRoomExists(targetRoomId, timeoutMs = 1500) {
+    return new Promise((resolve) => {
+      if (!this.client || !this.connected) {
+        // If client not connected yet, try connecting and default to allow
+        this.connect();
+        return setTimeout(() => resolve({ exists: true }), 300);
+      }
+
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const probeTopic = `movteg/room/${targetRoomId}`;
+      let resolved = false;
+
+      const onMessageProbe = (topic, message) => {
+        if (topic !== probeTopic) return;
+        try {
+          const payload = JSON.parse(message.toString());
+          if (payload.event === 'pong-room' && payload.data?.requestId === requestId) {
+            cleanup(true, payload.data);
+          }
+        } catch (e) {}
+      };
+
+      const cleanup = (exists, details = {}) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
+        this.client.removeListener('message', onMessageProbe);
+        if (this.roomId !== targetRoomId) {
+          this.client.unsubscribe(probeTopic);
+        }
+        resolve({ exists, ...details });
+      };
+
+      const timer = setTimeout(() => {
+        cleanup(false);
+      }, timeoutMs);
+
+      this.client.on('message', onMessageProbe);
+      this.client.subscribe(probeTopic, (err) => {
+        if (err) return cleanup(true); // network error, fallback to allow
+        this.client.publish(probeTopic, JSON.stringify({
+          senderId: this.id,
+          event: 'ping-room',
+          data: { requestId }
+        }), { qos: 0 });
+      });
+    });
+  }
+
   disconnect() {
     if (this.client) {
       this.emit('leave', {});

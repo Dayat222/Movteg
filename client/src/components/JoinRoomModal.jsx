@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Heart, LogIn, PlusCircle } from 'lucide-react';
+import { Film, Heart, LogIn, PlusCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { socket } from '../utils/socket';
 
 export default function JoinRoomModal({
   isOpen,
@@ -10,6 +11,8 @@ export default function JoinRoomModal({
   const [roomId, setRoomId] = useState(initialRoomId);
   const [mode, setMode] = useState(initialRoomId ? 'join' : 'create');
   const [error, setError] = useState('');
+  const [isCheckingRoom, setIsCheckingRoom] = useState(false);
+  const [notFoundRoomId, setNotFoundRoomId] = useState(null);
 
   useEffect(() => {
     const savedName = localStorage.getItem('movteg_username');
@@ -32,7 +35,7 @@ export default function JoinRoomModal({
     return `${adj}-${num}`;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
     if (!username.trim()) {
       setError('Masukkan nama panggilan kamu terlebih dahulu');
@@ -49,8 +52,29 @@ export default function JoinRoomModal({
       return;
     }
 
+    // If joining (or entering with initialRoomId), VALIDATE that room exists first!
+    if (mode === 'join' || !!initialRoomId) {
+      setIsCheckingRoom(true);
+      setError('');
+      setNotFoundRoomId(null);
+
+      try {
+        const check = await socket.checkRoomExists(targetRoomId, 1600);
+        setIsCheckingRoom(false);
+
+        if (!check.exists) {
+          // Room does not exist! Prompt user to choose
+          setNotFoundRoomId(targetRoomId);
+          return;
+        }
+      } catch (err) {
+        setIsCheckingRoom(false);
+      }
+    }
+
     localStorage.setItem('movteg_username', username.trim());
     setError('');
+    setNotFoundRoomId(null);
     onJoin(targetRoomId, username.trim(), mode === 'join' || !!initialRoomId);
   };
 
@@ -97,7 +121,11 @@ export default function JoinRoomModal({
             <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-950 rounded-xl border border-zinc-800 text-xs">
               <button
                 type="button"
-                onClick={() => setMode('create')}
+                onClick={() => {
+                  setMode('create');
+                  setError('');
+                  setNotFoundRoomId(null);
+                }}
                 className={`py-2 rounded-lg font-medium transition-all ${
                   mode === 'create'
                     ? 'bg-zinc-800 text-white shadow-sm'
@@ -108,7 +136,11 @@ export default function JoinRoomModal({
               </button>
               <button
                 type="button"
-                onClick={() => setMode('join')}
+                onClick={() => {
+                  setMode('join');
+                  setError('');
+                  setNotFoundRoomId(null);
+                }}
                 className={`py-2 rounded-lg font-medium transition-all ${
                   mode === 'join'
                     ? 'bg-zinc-800 text-white shadow-sm'
@@ -124,7 +156,7 @@ export default function JoinRoomModal({
           {mode === 'join' && (
             <div>
               <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                Kode Room
+                Kode / Nomor Room
               </label>
               <input
                 type="text"
@@ -132,6 +164,7 @@ export default function JoinRoomModal({
                 onChange={(e) => {
                   setRoomId(e.target.value);
                   setError('');
+                  setNotFoundRoomId(null);
                 }}
                 placeholder="Misal: cozy-4821"
                 className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors font-mono"
@@ -139,21 +172,71 @@ export default function JoinRoomModal({
             </div>
           )}
 
+          {/* Room Not Found Alert Box with Choices */}
+          {notFoundRoomId && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-200 animate-fade-in space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-white text-sm">Room Belum Ada!</p>
+                  <p className="text-zinc-300 mt-1 leading-relaxed">
+                    Ruangan <span className="font-mono font-bold text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded">{notFoundRoomId}</span> belum dibuat atau belum ada pasanganmu di dalamnya.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotFoundRoomId(null);
+                    setRoomId('');
+                  }}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 py-2 px-3 rounded-xl font-medium transition-colors text-center cursor-pointer"
+                >
+                  Coba Kode Lain
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = notFoundRoomId;
+                    setNotFoundRoomId(null);
+                    setMode('create');
+                    setRoomId(target);
+                    localStorage.setItem('movteg_username', username.trim());
+                    onJoin(target, username.trim(), false);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-500 text-white py-2 px-3 rounded-xl font-bold transition-colors text-center shadow-md shadow-amber-950/40 cursor-pointer"
+                >
+                  Buat Room Ini ✨
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-xs text-rose-400 font-medium">{error}</p>}
 
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-medium py-3 px-4 rounded-xl text-xs transition-all shadow-lg shadow-rose-950 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            disabled={isCheckingRoom}
+            className={`w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-medium py-3 px-4 rounded-xl text-xs transition-all shadow-lg shadow-rose-950 flex items-center justify-center gap-2 cursor-pointer mt-2 ${
+              isCheckingRoom ? 'opacity-80 cursor-wait' : ''
+            }`}
           >
-            {mode === 'create' ? (
+            {isCheckingRoom ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Memeriksa Ruangan...</span>
+              </>
+            ) : mode === 'create' ? (
               <>
                 <PlusCircle className="w-4 h-4" />
-                Buat Ruangan Bioskop
+                <span>Buat Ruangan Bioskop</span>
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                Masuk ke Ruangan
+                <span>Masuk ke Ruangan</span>
               </>
             )}
           </button>
