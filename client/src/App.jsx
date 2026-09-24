@@ -543,7 +543,7 @@ export default function App() {
         onInitiateCall={initiateCall}
         outgoingCall={outgoingCall}
         onEndOutgoingCall={endOutgoingCall}
-        canCall={users.length > 1 || !!localStorage.getItem('movteg_last_partner_token')}
+        canCall={true}
       />
 
       {/* Floating Partner Join Notification */}

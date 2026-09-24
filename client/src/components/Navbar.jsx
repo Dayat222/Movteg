@@ -26,7 +26,7 @@ export default function Navbar({
   onInitiateCall,
   outgoingCall,
   onEndOutgoingCall,
-  canCall,
+  canCall = true,
 }) {
   const [copied, setCopied] = useState(false);
 
