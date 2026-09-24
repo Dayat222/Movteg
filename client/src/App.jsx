@@ -320,17 +320,21 @@ export default function App() {
       ringtonePlayer.stop();
       if (data.accepted) {
         setPartnerToast(`📞 ${data.responderName} menerima panggilan!`);
+        setTimeout(() => setPartnerToast(''), 4000);
         if (!voiceChat.isVideoActive) {
           voiceChat.startVideo();
         }
       } else {
         setPartnerToast(`❌ ${data.responderName} menolak panggilan.`);
+        setTimeout(() => setPartnerToast(''), 4000);
       }
     };
 
     const handleCallEnded = () => {
       setIncomingCall(null);
+      setOutgoingCall(false);
       ringtonePlayer.stop();
+      setPartnerToast('');
     };
 
     socket.on('connect', handleConnect);
@@ -420,6 +424,7 @@ export default function App() {
   const endOutgoingCall = () => {
     socket.emit('end-call', { roomId });
     setOutgoingCall(false);
+    setPartnerToast('');
   };
 
   const handleToggleScreenShare = async () => {
@@ -527,9 +532,14 @@ export default function App() {
 
       {/* Floating Partner Join Notification */}
       {partnerToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-fade-in border border-emerald-400/40 backdrop-blur-md">
+        <div 
+          onClick={() => setPartnerToast('')}
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-fade-in border border-emerald-400/40 backdrop-blur-md cursor-pointer select-none transition-transform active:scale-95"
+          title="Klik untuk menutup"
+        >
           <Popcorn className="w-4 h-4 text-amber-300 animate-bounce" />
           <span>{partnerToast}</span>
+          <span className="text-[10px] text-emerald-200/80 ml-1.5 bg-emerald-700/50 rounded-full px-1.5 py-0.5">✕</span>
         </div>
       )}
 
