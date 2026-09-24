@@ -202,7 +202,7 @@ export default function Navbar({
         )}
 
         {/* Sync Button */}
-        {roomId && (
+        {roomId && !Capacitor.isNativePlatform() && (
           <button
             onClick={() => {
               import('../utils/ringtonePlayer').then(m => {
