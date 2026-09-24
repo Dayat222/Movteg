@@ -185,6 +185,29 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('call-partner', ({ roomId }) => {
+    if (!roomId) return;
+    socket.to(roomId).emit('incoming-call', {
+      callerName: currentUsername,
+      callerId: socket.id
+    });
+  });
+
+  socket.on('answer-call', ({ roomId, accepted, callerId }) => {
+    if (!callerId) return;
+    io.to(callerId).emit('call-answered', {
+      accepted,
+      responderName: currentUsername
+    });
+  });
+
+  socket.on('end-call', ({ roomId }) => {
+    if (!roomId) return;
+    socket.to(roomId).emit('call-ended', {
+      by: currentUsername
+    });
+  });
+
   socket.on('disconnect', () => {
     if (currentRoomId && rooms.has(currentRoomId)) {
       const room = rooms.get(currentRoomId);

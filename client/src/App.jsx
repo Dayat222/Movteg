@@ -9,6 +9,7 @@ import SettingsModal from './components/SettingsModal';
 import ScreenSharePlayer from './components/ScreenSharePlayer';
 import UpdateModal from './components/UpdateModal';
 import FloatingFaceCam from './components/FloatingFaceCam';
+import IncomingCallOverlay from './components/IncomingCallOverlay';
 import { socket } from './utils/socket';
 import { voiceChat } from './utils/voiceChat';
 import { screenShare } from './utils/screenShare';
@@ -71,6 +72,16 @@ export default function App() {
 
   // Mobile layout tab
   const [partnerToast, setPartnerToast] = useState('');
+
+  // Call feature state
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [outgoingCall, setOutgoingCall] = useState(false);
+  const ringtoneRef = useRef(null);
+
+  useEffect(() => {
+    ringtoneRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg');
+    ringtoneRef.current.loop = true;
+  }, []);
 
   // Join Room Handler
   const handleJoin = (targetRoomId, enteredName, isGuest = false) => {
@@ -256,6 +267,34 @@ export default function App() {
       }
     };
 
+    const handleIncomingCall = (data) => {
+      setIncomingCall(data);
+      if (ringtoneRef.current) {
+        ringtoneRef.current.currentTime = 0;
+        ringtoneRef.current.play().catch(e => console.log('Autoplay blocked:', e));
+      }
+    };
+
+    const handleCallAnswered = (data) => {
+      setOutgoingCall(false);
+      if (data.accepted) {
+        setPartnerToast(`📞 ${data.responderName} menerima panggilan!`);
+        if (!voiceChat.isVideoActive) {
+          voiceChat.startVideo();
+        }
+      } else {
+        setPartnerToast(`❌ ${data.responderName} menolak panggilan.`);
+      }
+    };
+
+    const handleCallEnded = () => {
+      setIncomingCall(null);
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current.currentTime = 0;
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('room-state', handleRoomState);
@@ -265,6 +304,9 @@ export default function App() {
     socket.on('new-message', handleNewMessage);
     socket.on('new-reaction', handleNewReaction);
     socket.on('screen-share-state', handleScreenShareEvent);
+    socket.on('incoming-call', handleIncomingCall);
+    socket.on('call-answered', handleCallAnswered);
+    socket.on('call-ended', handleCallEnded);
 
     return () => {
       socket.off('connect', handleConnect);
@@ -276,8 +318,45 @@ export default function App() {
       socket.off('new-message', handleNewMessage);
       socket.off('new-reaction', handleNewReaction);
       socket.off('screen-share-state', handleScreenShareEvent);
+      socket.off('incoming-call', handleIncomingCall);
+      socket.off('call-answered', handleCallAnswered);
+      socket.off('call-ended', handleCallEnded);
     };
   }, [roomId, username, isInRoom]);
+
+  // Call Handlers
+  const initiateCall = () => {
+    socket.emit('call-partner', { roomId });
+    setOutgoingCall(true);
+    setPartnerToast('📞 Memanggil pasangan...');
+    // Optional: play outgoing ringtone
+  };
+
+  const acceptCall = () => {
+    if (incomingCall) {
+      socket.emit('answer-call', { roomId, accepted: true, callerId: incomingCall.callerId });
+      setIncomingCall(null);
+      if (ringtoneRef.current) ringtoneRef.current.pause();
+      
+      // Auto-start video
+      if (!voiceChat.isVideoActive) {
+        voiceChat.startVideo();
+      }
+    }
+  };
+
+  const declineCall = () => {
+    if (incomingCall) {
+      socket.emit('answer-call', { roomId, accepted: false, callerId: incomingCall.callerId });
+      setIncomingCall(null);
+      if (ringtoneRef.current) ringtoneRef.current.pause();
+    }
+  };
+
+  const endOutgoingCall = () => {
+    socket.emit('end-call', { roomId });
+    setOutgoingCall(false);
+  };
 
   const handleToggleScreenShare = async () => {
     if (screenShareState.isSharing) {
@@ -376,6 +455,9 @@ export default function App() {
         onOpenChangeVideo={() => setIsChangeVideoOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onManualSync={handleManualSync}
+        onInitiateCall={initiateCall}
+        outgoingCall={outgoingCall}
+        onEndOutgoingCall={endOutgoingCall}
       />
 
       {/* Floating Partner Join Notification */}
@@ -468,6 +550,15 @@ export default function App() {
         onToggleMute={() => voiceChat.toggleMute()}
         onFlipCamera={() => voiceChat.flipCamera()}
       />
+
+      {/* Incoming Call Overlay */}
+      {incomingCall && (
+        <IncomingCallOverlay
+          callerName={incomingCall.callerName}
+          onAccept={acceptCall}
+          onDecline={declineCall}
+        />
+      )}
 
       {/* Modals */}
       <JoinRoomModal

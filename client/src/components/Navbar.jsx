@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
+import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff, Bell, BellRing } from 'lucide-react';
 
 export default function Navbar({
   roomId,
@@ -23,6 +23,9 @@ export default function Navbar({
   hasActiveScreenShare,
   onToggleScreenShare,
   canShareScreen,
+  onInitiateCall,
+  outgoingCall,
+  onEndOutgoingCall,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -109,6 +112,26 @@ export default function Navbar({
         {/* Voice Chat Controls */}
         {roomId && (
           <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 md:p-1">
+            
+            {/* Call / Ring Partner Button */}
+            {users.length > 1 && (
+              <button
+                onClick={outgoingCall ? onEndOutgoingCall : onInitiateCall}
+                title={outgoingCall ? 'Batalkan Panggilan' : 'Deringkan HP Pasangan'}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                  outgoingCall
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 animate-pulse'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                }`}
+              >
+                {outgoingCall ? (
+                  <PhoneOff className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                ) : (
+                  <BellRing className="w-3.5 h-3.5 md:w-4 md:h-4 text-amber-400 hover:text-amber-300" />
+                )}
+              </button>
+            )}
+
             <button
               onClick={onToggleVoice}
               title={
