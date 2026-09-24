@@ -11,7 +11,7 @@ class MqttSocketAdapter {
     this.connected = false;
     this.id = Math.random().toString(36).substr(2, 9);
     this.usersMap = new Map(); // id -> { id, username, fcmToken }
-    this.fcmToken = localStorage.getItem('fcmToken') || null;
+    this.fcmToken = localStorage.getItem('movteg_fcm_token') || null;
     
     // Video state tracking for late joiners
     this.currentVideoUrl = null;
@@ -150,7 +150,11 @@ class MqttSocketAdapter {
   }
 
   setFcmToken(token) {
+    if (!token) return;
     this.fcmToken = token;
+    try {
+      localStorage.setItem('movteg_fcm_token', token);
+    } catch (e) {}
     if (this.connected && this.roomId) {
        this.broadcastPresence(false);
     }

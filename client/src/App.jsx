@@ -85,6 +85,13 @@ export default function App() {
   const [incomingCall, setIncomingCall] = useState(null);
   const [outgoingCall, setOutgoingCall] = useState(false);
 
+  useEffect(() => {
+    const savedToken = localStorage.getItem('movteg_fcm_token');
+    if (savedToken) {
+      socket.setFcmToken(savedToken);
+    }
+  }, []);
+
   // Join Room Handler
   const handleJoin = (targetRoomId, enteredName, isGuest = false) => {
     setRoomId(targetRoomId);
@@ -188,8 +195,9 @@ export default function App() {
 
         PushNotifications.addListener('registration', (token) => {
           console.log('Push registration success, token: ' + token.value);
-          if (socket.connected) {
-            socket.emit('register-fcm-token', { username, token: token.value });
+          if (token && token.value) {
+            localStorage.setItem('movteg_fcm_token', token.value);
+            socket.setFcmToken(token.value);
           }
         });
 
