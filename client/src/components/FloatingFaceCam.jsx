@@ -21,6 +21,13 @@ export default function FloatingFaceCam({
   const remoteVideoRef = useRef(null);
   const nodeRef = useRef(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isForceClosed, setIsForceClosed] = useState(false);
+
+  useEffect(() => {
+    if (isVideoActive) {
+      setIsForceClosed(false);
+    }
+  }, [isVideoActive]);
 
   // Extract first remote stream with active live video track
   let partnerStream = null;
@@ -58,48 +65,57 @@ export default function FloatingFaceCam({
     }
   }, [partnerStream]);
 
-  // Only show floating card if:
-  // 1. Local user's camera is active, OR
-  // 2. Partner's camera is active AND partner actually has a live video stream
+  // Only show floating card if not manually closed AND (user or partner has live camera)
   const hasLivePartnerVideo = Boolean(hasPartnerInCam && partnerStream);
-  if (!isVideoActive && !hasLivePartnerVideo) {
+  if (isForceClosed || (!isVideoActive && !hasLivePartnerVideo)) {
     return null;
   }
 
   return (
-    <Draggable nodeRef={nodeRef} handle=".drag-handle">
+    <Draggable nodeRef={nodeRef} handle=".drag-handle" cancel="button, .no-drag">
       <div 
         ref={nodeRef}
         className="fixed bottom-16 right-3 md:bottom-6 md:right-6 z-40 select-none"
       >
         <div
           className={`bg-zinc-950/90 border border-rose-500/40 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 animate-fade-in ${
-            isMinimized ? 'w-36 h-12' : 'w-56 md:w-64'
+            isMinimized ? 'w-44 h-12' : 'w-56 md:w-64'
           }`}
         >
           {/* Header Bar */}
-          <div className="drag-handle px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between cursor-move active:cursor-grabbing">
-            <div className="flex items-center gap-1.5 min-w-0 pointer-events-none">
+          <div className="px-3 py-1.5 bg-zinc-900/90 border-b border-zinc-800/80 flex items-center justify-between">
+            {/* Draggable Title Area */}
+            <div className="drag-handle flex items-center gap-1.5 flex-1 min-w-0 cursor-move active:cursor-grabbing py-1 pr-1">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0"></span>
-              <span className="text-[11px] font-semibold text-white truncate flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-white truncate flex items-center gap-1 pointer-events-none">
                 {partnerName || 'Pasangan'} 💕
               </span>
+              <GripHorizontal className="w-3.5 h-3.5 text-zinc-500 pointer-events-none ml-auto" />
             </div>
-            <div className="flex items-center gap-1">
-              <GripHorizontal className="w-4 h-4 text-zinc-500 pointer-events-none mr-0.5" />
+
+            {/* Non-Draggable Interactive Buttons */}
+            <div className="no-drag flex items-center gap-1 pl-1 flex-shrink-0 z-50">
               <button
-                onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-                className="text-zinc-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMinimized(!isMinimized);
+                }}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer active:scale-90"
                 title={isMinimized ? 'Perbesar' : 'Minimalkan'}
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onToggleVideo) onToggleVideo();
+                  setIsForceClosed(true);
+                  if (isVideoActive && onToggleVideo) {
+                    onToggleVideo();
+                  }
                 }}
-                className="text-zinc-400 hover:text-rose-400 p-0.5 rounded transition-colors cursor-pointer ml-0.5"
+                className="text-zinc-400 hover:text-rose-400 p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer active:scale-90"
                 title="Tutup Kamera Melayang"
               >
                 <X className="w-3.5 h-3.5" />
