@@ -193,13 +193,16 @@ export default function App() {
 
         // Create high-priority notification channel for calls on Android
         try {
+          await PushNotifications.deleteChannel({ id: 'calls' });
+        } catch (e) {}
+
+        try {
           await PushNotifications.createChannel({
-            id: 'calls',
-            name: 'Panggilan Masuk',
-            description: 'Notifikasi saat pasangan memanggil',
+            id: 'calls_v2',
+            name: 'Panggilan Masuk Movteg',
+            description: 'Notifikasi dan dering saat pasangan memanggil',
             importance: 5,
             visibility: 1,
-            sound: 'default',
             vibration: true,
             lights: true,
             lightColor: '#e11d48'
