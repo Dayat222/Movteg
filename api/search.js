@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   try {
     const result = await ytSearch(q);
-    const videos = result.videos.slice(0, 10).map(v => ({
+    const videos = result.videos.slice(0, 30).map(v => ({
       id: v.videoId,
       title: v.title,
       url: v.url,
