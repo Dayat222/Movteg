@@ -23,6 +23,25 @@ import { Capacitor } from '@capacitor/core';
 const DEFAULT_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 export default function App() {
+  const [isUnsupportedBrowser, setIsUnsupportedBrowser] = useState(false);
+
+  useEffect(() => {
+    // Detect iOS Chrome (CriOS) or In-App Browsers on iOS (Instagram, FB, LINE, WhatsApp)
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    
+    if (isIOSDevice) {
+      // Chrome on iOS
+      const isCriOS = /CriOS/i.test(ua);
+      // In-App browsers usually contain these strings
+      const isInApp = /Instagram|FBAV|FBAN|Line|WhatsApp/i.test(ua);
+      
+      if (isCriOS || isInApp) {
+        setIsUnsupportedBrowser(true);
+      }
+    }
+  }, []);
+
   // Check URL query for room
   const urlParams = new URLSearchParams(window.location.search);
   const initialRoomQuery = urlParams.get('room') || '';
@@ -524,6 +543,46 @@ export default function App() {
       },
     ]);
   }, []);
+
+  if (isUnsupportedBrowser) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-center text-white">
+        <div className="w-16 h-16 bg-rose-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-rose-900/50">
+          <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-3">Browser Tidak Didukung</h2>
+        <p className="text-zinc-400 text-sm mb-6 max-w-sm leading-relaxed">
+          Sistem Apple memblokir fitur Panggilan Video dan Suara jika dibuka dari Google Chrome atau Browser dalam aplikasi (seperti IG/WhatsApp).
+          <br/><br/>
+          Harap buka menggunakan browser bawaan <b>Safari</b> agar fitur berjalan lancar.
+        </p>
+        
+        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex items-center gap-2 mb-6">
+          <input 
+            type="text" 
+            readOnly 
+            value={window.location.href} 
+            className="flex-1 bg-transparent text-xs text-zinc-300 focus:outline-none truncate"
+          />
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              alert('Link berhasil disalin! Silakan paste di browser Safari.');
+            }}
+            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-medium text-white transition-colors whitespace-nowrap"
+          >
+            Salin Link
+          </button>
+        </div>
+        
+        <p className="text-xs text-rose-400 font-medium animate-pulse">
+          Buka Safari ➔ Tempel (Paste) Link di atas ➔ Tonton Bersama!
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col selection:bg-rose-500 selection:text-white">
