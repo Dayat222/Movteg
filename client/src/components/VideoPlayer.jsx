@@ -12,9 +12,12 @@ export default function VideoPlayer({
   const isYouTube = isYouTubeUrl(videoUrl);
   const ytVideoId = isYouTube ? getYouTubeId(videoUrl) : null;
 
-  // Refs for state lock
+  // Refs for state lock & play queue
   const isRemoteUpdateRef = useRef(false);
   const isSeekingRef = useRef(false);
+  const shouldBePlayingRef = useRef(false);
+  const targetSeekTimeRef = useRef(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   // HTML5 Video refs
   const videoRef = useRef(null);
@@ -268,6 +271,17 @@ export default function VideoPlayer({
           }
         });
 
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (shouldBePlayingRef.current && video) {
+            if (targetSeekTimeRef.current !== null) {
+              applyVideoSeek(video, targetSeekTimeRef.current);
+            }
+            video.play().then(() => {
+              setAutoplayBlocked(false);
+            }).catch(() => setAutoplayBlocked(true));
+          }
+        });
+
         hls.loadSource(videoUrl);
         hls.attachMedia(video);
         hlsRef.current = hls;
@@ -277,9 +291,27 @@ export default function VideoPlayer({
       video.load();
     }
 
+    const handleAutoResume = () => {
+      if (shouldBePlayingRef.current && video) {
+        if (targetSeekTimeRef.current !== null) {
+          applyVideoSeek(video, targetSeekTimeRef.current);
+        }
+        video.play().then(() => {
+          setAutoplayBlocked(false);
+        }).catch((err) => {
+          console.warn('[Video] Auto-resume blocked by browser:', err);
+          setAutoplayBlocked(true);
+        });
+      }
+    };
+    video.addEventListener('canplay', handleAutoResume);
+    video.addEventListener('loadeddata', handleAutoResume);
+
     return () => {
       if (video) {
         video.onerror = null;
+        video.removeEventListener('canplay', handleAutoResume);
+        video.removeEventListener('loadeddata', handleAutoResume);
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -297,6 +329,8 @@ export default function VideoPlayer({
       return;
     }
     setIsPlaying(true);
+    shouldBePlayingRef.current = true;
+    setAutoplayBlocked(false);
     if (videoRef.current) {
       socket.emit('video-play', {
         roomId,
@@ -312,6 +346,9 @@ export default function VideoPlayer({
       return;
     }
     setIsPlaying(false);
+    shouldBePlayingRef.current = false;
+    targetSeekTimeRef.current = null;
+    setAutoplayBlocked(false);
     if (videoRef.current) {
       socket.emit('video-pause', {
         roomId,
@@ -349,14 +386,17 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!socket) return;
 
-    // 1. Partner played video (High Precision + Latency Compensation)
+    // 1. Partner played video (High Precision + Latency Compensation + Ready Queue)
     const handleRemotePlay = ({ currentTime: remoteTime, sentAt, by }) => {
       setIsPlaying(true);
+      shouldBePlayingRef.current = true;
+      setAutoplayBlocked(false);
       showSyncNotice(`▶️ ${by || 'Pasangan'} memutar video`);
       if (onActivity) onActivity(`${by || 'Pasangan'} memutar video`);
 
       const transitLag = sentAt ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
       const targetTime = remoteTime + (transitLag < 2.0 ? transitLag : 0);
+      targetSeekTimeRef.current = targetTime;
 
       if (isYouTube && ytPlayerRef.current?.playVideo) {
         isRemoteUpdateRef.current = true;
@@ -367,27 +407,46 @@ export default function VideoPlayer({
         ytPlayerRef.current.playVideo();
         setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
-        let changed = false;
-        if (Math.abs(videoRef.current.currentTime - targetTime) > 0.2) {
-          applyVideoSeek(videoRef.current, targetTime);
-          changed = true;
+        const video = videoRef.current;
+        isRemoteUpdateRef.current = true;
+
+        if (Math.abs(video.currentTime - targetTime) > 0.2) {
+          applyVideoSeek(video, targetTime);
         }
-        if (videoRef.current.paused) {
-          changed = true;
-          videoRef.current.play().catch(() => {
-            isRemoteUpdateRef.current = false;
+
+        if (video.readyState >= 2) {
+          video.play().then(() => {
+            setAutoplayBlocked(false);
+          }).catch((err) => {
+            console.warn('[RemotePlay] Autoplay blocked by browser:', err);
+            setAutoplayBlocked(true);
           });
+        } else {
+          console.log('[RemotePlay] Video not ready yet (readyState', video.readyState, '). Queuing play...');
+          const onReady = () => {
+            if (shouldBePlayingRef.current && video) {
+              if (targetSeekTimeRef.current !== null) {
+                applyVideoSeek(video, targetSeekTimeRef.current);
+              }
+              video.play().then(() => {
+                setAutoplayBlocked(false);
+              }).catch(() => setAutoplayBlocked(true));
+            }
+          };
+          video.addEventListener('canplay', onReady, { once: true });
+          video.addEventListener('loadedmetadata', onReady, { once: true });
         }
-        if (changed) {
-          isRemoteUpdateRef.current = true;
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
-        }
+
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       }
     };
 
     // 2. Partner paused video (Snap to Exact Same Frame)
     const handleRemotePause = ({ currentTime: remoteTime, by }) => {
       setIsPlaying(false);
+      shouldBePlayingRef.current = false;
+      targetSeekTimeRef.current = null;
+      setAutoplayBlocked(false);
       showSyncNotice(`⏸️ ${by || 'Pasangan'} menjeda video`);
       if (onActivity) onActivity(`${by || 'Pasangan'} menjeda video`);
 
@@ -424,15 +483,27 @@ export default function VideoPlayer({
       }
     };
 
-    // 4. Periodic Drift Correction (Continuous Lockstep)
+    // 4. Periodic Drift Correction (Continuous Lockstep & Auto-Wake)
     const handleSyncHeartbeat = ({ currentTime: remoteTime, isPlaying: remoteIsPlaying, sentAt }) => {
       if (isRemoteUpdateRef.current || isSeekingRef.current) return;
       if (!remoteIsPlaying) return;
 
+      shouldBePlayingRef.current = true;
       const transitLag = sentAt ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
       const targetTime = remoteTime + (transitLag < 1.5 ? transitLag : 0);
+      targetSeekTimeRef.current = targetTime;
 
       if (isYouTube && ytPlayerRef.current) {
+        const playerState = ytPlayerRef.current.getPlayerState?.();
+        if (playerState !== 1 && typeof ytPlayerRef.current.playVideo === 'function') {
+          console.log('[Heartbeat] Partner is playing YouTube, auto-starting...');
+          isRemoteUpdateRef.current = true;
+          ytPlayerRef.current.seekTo(targetTime, true);
+          ytPlayerRef.current.playVideo();
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
+          return;
+        }
+
         const cur = ytPlayerRef.current.getCurrentTime() || 0;
         const drift = Math.abs(cur - targetTime);
         if (drift > 0.35) {
@@ -440,12 +511,30 @@ export default function VideoPlayer({
           ytPlayerRef.current.seekTo(targetTime, true);
           setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
         }
-      } else if (videoRef.current && !videoRef.current.paused) {
-        const cur = videoRef.current.currentTime;
+      } else if (videoRef.current) {
+        const video = videoRef.current;
+
+        // If partner is playing but my video is paused, AUTO-WAKE UP!
+        if (video.paused) {
+          console.log('[Heartbeat] Partner is playing! Waking up local video at', targetTime);
+          isRemoteUpdateRef.current = true;
+          applyVideoSeek(video, targetTime);
+          video.play().then(() => {
+            setAutoplayBlocked(false);
+          }).catch((err) => {
+            console.warn('[Heartbeat] Autoplay blocked by browser:', err);
+            setAutoplayBlocked(true);
+          });
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
+          return;
+        }
+
+        // Both are playing, correct any drift
+        const cur = video.currentTime;
         const drift = Math.abs(cur - targetTime);
         if (drift > 0.25) {
           isRemoteUpdateRef.current = true;
-          applyVideoSeek(videoRef.current, targetTime);
+          applyVideoSeek(video, targetTime);
           setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
         }
       }
@@ -459,19 +548,32 @@ export default function VideoPlayer({
         if (remoteIsPlaying) ytPlayerRef.current.playVideo();
         setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
-        let changed = false;
-        if (Math.abs(videoRef.current.currentTime - (remoteTime || 0)) > 0.25) {
-          applyVideoSeek(videoRef.current, remoteTime || 0);
-          changed = true;
+        const video = videoRef.current;
+        isRemoteUpdateRef.current = true;
+        if (Math.abs(video.currentTime - (remoteTime || 0)) > 0.25) {
+          applyVideoSeek(video, remoteTime || 0);
         }
-        if (remoteIsPlaying && videoRef.current.paused) {
-          videoRef.current.play().catch(() => {});
-          changed = true;
+        if (remoteIsPlaying) {
+          shouldBePlayingRef.current = true;
+          targetSeekTimeRef.current = remoteTime || 0;
+          if (video.readyState >= 2) {
+            video.play().then(() => setAutoplayBlocked(false)).catch(() => setAutoplayBlocked(true));
+          } else {
+            const onReady = () => {
+              if (shouldBePlayingRef.current) {
+                video.play().then(() => setAutoplayBlocked(false)).catch(() => setAutoplayBlocked(true));
+              }
+            };
+            video.addEventListener('canplay', onReady, { once: true });
+            video.addEventListener('loadeddata', onReady, { once: true });
+          }
+        } else {
+          shouldBePlayingRef.current = false;
+          if (!video.paused) {
+            video.pause();
+          }
         }
-        if (changed) {
-          isRemoteUpdateRef.current = true;
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
-        }
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       }
     };
 
@@ -543,6 +645,29 @@ export default function VideoPlayer({
           <Volume2 className="w-3.5 h-3.5" />
           <span>Boost Film: {boostLevel * 100}%</span>
         </button>
+      )}
+
+      {/* Autoplay Blocked Tap-to-Play Overlay */}
+      {autoplayBlocked && (
+        <div 
+          onClick={() => {
+            setAutoplayBlocked(false);
+            shouldBePlayingRef.current = true;
+            if (videoRef.current) {
+              videoRef.current.play().catch(() => {});
+            }
+            if (isYouTube && ytPlayerRef.current?.playVideo) {
+              ytPlayerRef.current.playVideo();
+            }
+          }}
+          className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center cursor-pointer animate-fade-in select-none"
+        >
+          <div className="w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center mb-3 shadow-lg shadow-rose-950 animate-bounce">
+            <Play className="w-8 h-8 fill-current ml-1" />
+          </div>
+          <h4 className="text-base font-bold text-white mb-1">Pasangan Sedang Memutar Film</h4>
+          <p className="text-xs text-zinc-300">Ketuk di mana saja untuk mulai menonton bersama!</p>
+        </div>
       )}
 
       {/* Video Content */}
