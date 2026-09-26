@@ -20,10 +20,12 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@consumet/extensions": "^1.8.8",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "firebase-admin": "^14.5.0",
     "socket.io": "^4.8.1",
+    "youtube-sr": "^4.3.12",
     "yt-search": "^2.13.1"
   },
   "devDependencies": {

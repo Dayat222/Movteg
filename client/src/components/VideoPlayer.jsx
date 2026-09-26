@@ -156,6 +156,22 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video || !videoUrl) return;
 
+    let hasRetriedWithProxy = false;
+
+    // Fallback handler for native <video> errors (e.g. CORS block on iOS Safari / Android)
+    video.onerror = () => {
+      const err = video.error;
+      console.warn('[Video] Native playback error:', err?.message || err?.code);
+      if (!hasRetriedWithProxy && !video.src.includes('/api/proxy')) {
+        hasRetriedWithProxy = true;
+        console.log('[Video] Retrying via CORS Proxy...');
+        showSyncNotice('🔄 Memutar via jalur bypass CORS...');
+        video.src = `/api/proxy?url=${encodeURIComponent(videoUrl)}`;
+        video.load();
+        video.play().catch(() => {});
+      }
+    };
+
     if (isHlsUrl(videoUrl)) {
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // iOS Safari native HLS (faster, hardware accelerated, reliable)
@@ -165,7 +181,38 @@ export default function VideoPlayer({
         if (hlsRef.current) {
           hlsRef.current.destroy();
         }
-        const hls = new Hls({ enableWorker: true });
+        const hls = new Hls({ 
+          enableWorker: true,
+          manifestLoadingMaxRetry: 1,
+          levelLoadingMaxRetry: 1
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.warn('[HLS] Error details:', data.type, data.details);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                if (!hasRetriedWithProxy) {
+                  hasRetriedWithProxy = true;
+                  console.log('[HLS] Network/CORS error detected. Switching to CORS Proxy...');
+                  showSyncNotice('🔄 Memutar via jalur bypass CORS...');
+                  hls.loadSource(`/api/proxy?url=${encodeURIComponent(videoUrl)}`);
+                  hls.startLoad();
+                } else {
+                  console.error('[HLS] Fatal network error after proxy retry');
+                  hls.startLoad();
+                }
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                break;
+            }
+          }
+        });
+
         hls.loadSource(videoUrl);
         hls.attachMedia(video);
         hlsRef.current = hls;
@@ -176,6 +223,9 @@ export default function VideoPlayer({
     }
 
     return () => {
+      if (video) {
+        video.onerror = null;
+      }
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;

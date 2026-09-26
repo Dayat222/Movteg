@@ -140,9 +140,21 @@ export default function ChangeVideoModal({
                 <button
                   type="submit"
                   disabled={isSearching}
-                  className="bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 rounded-xl text-xs transition-colors flex items-center justify-center shadow-lg shadow-rose-950 cursor-pointer disabled:opacity-50 shrink-0"
+                  className="bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 rounded-xl text-xs transition-colors flex items-center justify-center shadow-lg shadow-rose-950 cursor-pointer disabled:opacity-50 shrink-0 gap-1.5"
                 >
-                  {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  {isSearching ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : inputUrl.trim().startsWith('http') ? (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Putar</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      <span>Cari</span>
+                    </>
+                  )}
                 </button>
               </div>
               {error && <p className="text-xs text-rose-400 mt-1">{error}</p>}
