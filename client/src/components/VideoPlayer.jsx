@@ -14,7 +14,8 @@ export default function VideoPlayer({
 
   // Refs for state lock & play queue
   const isRemoteUpdateRef = useRef(false);
-  const programmaticSeekRef = useRef(false);
+  const programmaticSeeksRef = useRef(new Map());
+  const expectedPlayingRef = useRef(null);
   const isSeekingRef = useRef(false);
   const shouldBePlayingRef = useRef(false);
   const targetSeekTimeRef = useRef(null);
@@ -97,6 +98,7 @@ export default function VideoPlayer({
   // Safe seek helper for HTML5 video on mobile/Android WebView
   const applyVideoSeek = useCallback((video, targetTime) => {
     if (!video || typeof targetTime !== 'number' || isNaN(targetTime)) return;
+    programmaticSeeksRef.current.set(Math.round(targetTime), Date.now());
     if (video.readyState >= 1) {
       video.currentTime = targetTime;
     } else {
@@ -343,7 +345,10 @@ export default function VideoPlayer({
   // HTML5 Event Handlers (Local User Actions)
   // ----------------------------------------------------
   const handleHtml5Play = () => {
-    if (isRemoteUpdateRef.current) return;
+    if (expectedPlayingRef.current?.state === true && (Date.now() - expectedPlayingRef.current.timestamp < 5000)) {
+      expectedPlayingRef.current = null;
+      return;
+    }
     
     setIsPlaying(true);
     shouldBePlayingRef.current = true;
@@ -358,7 +363,10 @@ export default function VideoPlayer({
   };
 
   const handleHtml5Pause = () => {
-    if (isRemoteUpdateRef.current || isSeekingRef.current) return;
+    if (expectedPlayingRef.current?.state === false && (Date.now() - expectedPlayingRef.current.timestamp < 5000)) {
+      expectedPlayingRef.current = null;
+      return;
+    }
 
     setIsPlaying(false);
     shouldBePlayingRef.current = false;
@@ -375,28 +383,32 @@ export default function VideoPlayer({
 
   const handleHtml5Seeking = () => {
     isSeekingRef.current = true;
-    if (isRemoteUpdateRef.current) {
-      programmaticSeekRef.current = true;
-    }
   };
 
   const handleHtml5Seeked = () => {
     isSeekingRef.current = false;
     
-    if (programmaticSeekRef.current) {
-      programmaticSeekRef.current = false;
-      return;
-    }
+    if (!videoRef.current) return;
     
-    if (isRemoteUpdateRef.current) return;
-
-    if (videoRef.current) {
-      socket.emit('video-seek', {
-        roomId,
-        currentTime: videoRef.current.currentTime,
-        sentAt: Date.now(),
-      });
+    const now = Date.now();
+    let matched = false;
+    
+    for (const [t, timestamp] of programmaticSeeksRef.current.entries()) {
+      if (now - timestamp < 10000 && Math.abs(t - videoRef.current.currentTime) <= 1.5) {
+        matched = true;
+      }
+      if (now - timestamp > 10000) {
+        programmaticSeeksRef.current.delete(t);
+      }
     }
+
+    if (matched) return;
+
+    socket.emit('video-seek', {
+      roomId,
+      currentTime: videoRef.current.currentTime,
+      sentAt: Date.now(),
+    });
   };
 
   const handleHtml5TimeUpdate = () => {
@@ -411,6 +423,10 @@ export default function VideoPlayer({
   // ----------------------------------------------------
   useEffect(() => {
     if (!socket) return;
+
+    const trackRemotePlayState = (state) => {
+      expectedPlayingRef.current = { state, timestamp: Date.now() };
+    };
 
     // 1. Partner played video (High Precision + Latency Compensation + Ready Queue)
     const handleRemotePlay = ({ currentTime: remoteTime, sentAt, by }) => {
@@ -435,6 +451,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         const video = videoRef.current;
         isRemoteUpdateRef.current = true;
+        trackRemotePlayState(true);
 
         if (Math.abs(video.currentTime - targetTime) > 0.2) {
           applyVideoSeek(video, targetTime);
@@ -483,6 +500,7 @@ export default function VideoPlayer({
         setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
         isRemoteUpdateRef.current = true;
+        trackRemotePlayState(false);
         applyVideoSeek(videoRef.current, remoteTime);
         if (!videoRef.current.paused) {
           videoRef.current.pause();
@@ -544,6 +562,7 @@ export default function VideoPlayer({
         if (video.paused) {
           console.log('[Heartbeat] Partner is playing! Waking up local video at', targetTime);
           isRemoteUpdateRef.current = true;
+          trackRemotePlayState(true);
           applyVideoSeek(video, targetTime);
           video.play().then(() => {
             setAutoplayBlocked(false);
@@ -576,6 +595,7 @@ export default function VideoPlayer({
       } else if (videoRef.current) {
         const video = videoRef.current;
         isRemoteUpdateRef.current = true;
+        trackRemotePlayState(remoteIsPlaying);
         if (Math.abs(video.currentTime - (remoteTime || 0)) > 0.25) {
           applyVideoSeek(video, remoteTime || 0);
         }
