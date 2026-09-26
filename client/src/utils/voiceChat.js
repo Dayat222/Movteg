@@ -35,6 +35,7 @@ class CallManager {
     this.isActive = false; // Voice active
     this.isVideoActive = false; // Camera active
     this.facingMode = 'user'; // 'user' (front) or 'environment' (back)
+    this.partnerVolume = 1.0; // 0.0 to 1.0
     this.onStateChange = null;
     this.onPartnerVoiceStatus = null;
     this.onPartnerCamStatus = null;
@@ -181,6 +182,14 @@ class CallManager {
       });
       this._notifyStateChange();
     }
+  }
+
+  setPartnerVolume(vol) {
+    this.partnerVolume = Math.max(0, Math.min(1, vol));
+    this.remoteAudioElements.forEach((audio) => {
+      audio.volume = this.partnerVolume;
+    });
+    this._notifyStateChange();
   }
 
   async toggleVideo() {
@@ -362,6 +371,7 @@ class CallManager {
         hasPartnerInCam: Array.from(this.activeCamUsers).some((id) => id !== socket.id),
         localStream: this.localStream,
         remoteStreams: this.remoteStreams,
+        partnerVolume: this.partnerVolume,
       });
     }
   }
@@ -437,7 +447,7 @@ class CallManager {
       audio.srcObject = stream;
     }
     audio.muted = false;
-    audio.volume = 1.0;
+    audio.volume = typeof this.partnerVolume === 'number' ? this.partnerVolume : 1.0;
     audio.play().catch((e) => {
       console.warn('[Call] Remote audio play error:', e);
     });

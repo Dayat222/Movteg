@@ -33,6 +33,61 @@ export default function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [syncStatus, setSyncStatus] = useState('Tersinkronisasi 🟢');
 
+  // Web Audio Volume Booster (up to 300% to overcome OS call ducking)
+  const [boostLevel, setBoostLevel] = useState(1);
+  const audioCtxRef = useRef(null);
+  const gainNodeRef = useRef(null);
+
+  const cycleBoost = () => {
+    const nextBoost = boostLevel === 1 ? 2 : boostLevel === 2 ? 3 : 1;
+    applyBoost(nextBoost);
+  };
+
+  const applyBoost = (multiplier) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        showSyncNotice('⚠️ Browser tidak mendukung Web Audio');
+        return;
+      }
+
+      if (!audioCtxRef.current) {
+        if (!video.crossOrigin) {
+          video.crossOrigin = 'anonymous';
+        }
+        const ctx = new AudioCtx();
+        const source = ctx.createMediaElementSource(video);
+        const gain = ctx.createGain();
+        gain.gain.value = multiplier;
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        audioCtxRef.current = ctx;
+        gainNodeRef.current = gain;
+      } else {
+        if (audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+        if (gainNodeRef.current) {
+          gainNodeRef.current.gain.value = multiplier;
+        }
+      }
+      setBoostLevel(multiplier);
+      showSyncNotice(`🔊 Suara Film di-boost ${multiplier * 100}%!`);
+    } catch (e) {
+      console.warn('[AudioBooster] Error:', e);
+      if (gainNodeRef.current) {
+        gainNodeRef.current.gain.value = multiplier;
+        setBoostLevel(multiplier);
+        showSyncNotice(`🔊 Suara Film di-boost ${multiplier * 100}%!`);
+      } else {
+        showSyncNotice('⚠️ Format video ini diproteksi oleh browser');
+      }
+    }
+  };
+
   const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   // Safe seek helper for HTML5 video on mobile/Android WebView
@@ -424,6 +479,22 @@ export default function VideoPlayer({
         {syncStatus}
       </div>
 
+      {/* Top Right: Volume Booster */}
+      {!isYouTube && (
+        <button
+          onClick={cycleBoost}
+          title="Penguat Suara Film (Web Audio Boost)"
+          className={`absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md border transition-all cursor-pointer ${
+            boostLevel > 1
+              ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-950 animate-pulse'
+              : 'bg-black/60 text-zinc-300 border-white/10 hover:bg-zinc-800 hover:text-white'
+          }`}
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          <span>Boost Film: {boostLevel * 100}%</span>
+        </button>
+      )}
+
       {/* Video Content */}
       <div className="w-full h-full flex items-center justify-center relative">
         {isYouTube ? (
@@ -437,6 +508,7 @@ export default function VideoPlayer({
             controls
             playsInline
             webkit-playsinline="true"
+            crossOrigin="anonymous"
             preload="auto"
             onPlay={handleHtml5Play}
             onPause={handleHtml5Pause}

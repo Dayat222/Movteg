@@ -644,6 +644,8 @@ export default function App() {
         outgoingCall={outgoingCall}
         onEndOutgoingCall={endOutgoingCall}
         canCall={true}
+        partnerVolume={voiceState.partnerVolume ?? 1.0}
+        onChangePartnerVolume={(vol) => voiceChat.setPartnerVolume(vol)}
       />
 
       {/* Floating Partner Join Notification */}
@@ -740,6 +742,8 @@ export default function App() {
         onToggleVoice={() => voiceChat.toggleVoice()}
         onToggleMute={() => voiceChat.toggleMute()}
         onFlipCamera={() => voiceChat.flipCamera()}
+        partnerVolume={voiceState.partnerVolume ?? 1.0}
+        onChangePartnerVolume={(vol) => voiceChat.setPartnerVolume(vol)}
       />
 
       {/* Incoming Call Overlay */}

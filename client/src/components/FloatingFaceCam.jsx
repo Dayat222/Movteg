@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal, X } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, RefreshCw, Minimize2, Maximize2, Heart, User, GripHorizontal, X, Volume2 } from 'lucide-react';
 
 export default function FloatingFaceCam({
   localStream,
@@ -16,12 +16,15 @@ export default function FloatingFaceCam({
   onToggleVoice,
   onToggleMute,
   onFlipCamera,
+  partnerVolume = 1,
+  onChangePartnerVolume,
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const nodeRef = useRef(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isForceClosed, setIsForceClosed] = useState(false);
+  const [showVolSlider, setShowVolSlider] = useState(false);
 
   useEffect(() => {
     if (isVideoActive) {
@@ -229,6 +232,38 @@ export default function FloatingFaceCam({
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
               )}
+
+              {/* Partner Voice Volume Slider Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowVolSlider(!showVolSlider)}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    showVolSlider ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                  }`}
+                  title={`Volume Suara Pasangan: ${Math.round((partnerVolume !== undefined ? partnerVolume : 1) * 100)}%`}
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                </button>
+
+                {showVolSlider && (
+                  <div className="absolute bottom-full mb-2 left-0 bg-zinc-950/95 border border-zinc-700 rounded-xl p-2.5 shadow-2xl z-50 flex flex-col gap-1.5 w-36 backdrop-blur-md animate-fade-in">
+                    <div className="flex items-center justify-between text-[10px] text-zinc-300 font-semibold">
+                      <span>Suara Pasangan</span>
+                      <span className="text-emerald-400">{Math.round((partnerVolume !== undefined ? partnerVolume : 1) * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={partnerVolume !== undefined ? partnerVolume : 1}
+                      onChange={(e) => onChangePartnerVolume && onChangePartnerVolume(parseFloat(e.target.value))}
+                      className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff, Bell, BellRing } from 'lucide-react';
+import { Film, Share2, Check, Video, VideoOff, Settings, Heart, Users, RefreshCw, Mic, MicOff, Phone, PhoneOff, MonitorUp, MonitorOff, Bell, BellRing, Volume2 } from 'lucide-react';
 
 export default function Navbar({
   roomId,
@@ -27,8 +27,11 @@ export default function Navbar({
   outgoingCall,
   onEndOutgoingCall,
   canCall = true,
+  partnerVolume = 1,
+  onChangePartnerVolume,
 }) {
   const [copied, setCopied] = useState(false);
+  const [showVolumePopup, setShowVolumePopup] = useState(false);
 
   const handleCopyInvite = async () => {
     const inviteUrl = `https://movteg.vercel.app/?room=${roomId}`;
@@ -169,6 +172,44 @@ export default function Navbar({
               >
                 {isVoiceMuted ? <MicOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               </button>
+            )}
+
+            {/* Partner Voice Volume Slider Popup */}
+            {(isVoiceActive || hasPartnerInVoice) && (
+              <div className="relative flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowVolumePopup(!showVolumePopup)}
+                  title={`Volume Suara Pasangan: ${Math.round((partnerVolume !== undefined ? partnerVolume : 1) * 100)}%`}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    showVolumePopup ? 'bg-emerald-500/30 text-emerald-300' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  <Volume2 className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-400" />
+                </button>
+                {showVolumePopup && (
+                  <div className="absolute top-full mt-2 right-0 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl z-50 flex flex-col gap-2 w-48 animate-fade-in">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-300 font-medium">
+                      <span>Suara Pasangan</span>
+                      <span className="text-emerald-400 font-bold">{Math.round((partnerVolume !== undefined ? partnerVolume : 1) * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={partnerVolume !== undefined ? partnerVolume : 1}
+                      onChange={(e) => onChangePartnerVolume && onChangePartnerVolume(parseFloat(e.target.value))}
+                      className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                    />
+                    <div className="flex justify-between text-[9px] text-zinc-500">
+                      <span>Senyap</span>
+                      <span>50%</span>
+                      <span>Maks</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Video Call (Camera) Button */}
