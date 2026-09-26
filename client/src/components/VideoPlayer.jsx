@@ -14,6 +14,7 @@ export default function VideoPlayer({
 
   // Refs for state lock & play queue
   const isRemoteUpdateRef = useRef(false);
+  const programmaticSeekRef = useRef(false);
   const isSeekingRef = useRef(false);
   const shouldBePlayingRef = useRef(false);
   const targetSeekTimeRef = useRef(null);
@@ -111,10 +112,31 @@ export default function VideoPlayer({
     }
   }, []);
 
-  const showSyncNotice = (text) => {
+  const [isUiVisible, setIsUiVisible] = useState(false);
+  const uiTimeoutRef = useRef(null);
+
+  const showUi = useCallback(() => {
+    setIsUiVisible(true);
+    if (uiTimeoutRef.current) {
+      clearTimeout(uiTimeoutRef.current);
+    }
+    uiTimeoutRef.current = setTimeout(() => {
+      setIsUiVisible(false);
+    }, 3000);
+  }, []);
+
+  const showSyncNotice = useCallback((text) => {
     setSyncStatus(text);
+    showUi();
     setTimeout(() => setSyncStatus('Tersinkronisasi 🟢'), 3000);
-  };
+  }, [showUi]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
+    };
+  }, []);
 
   // ----------------------------------------------------
   // YouTube IFrame API Initialization
@@ -170,10 +192,7 @@ export default function VideoPlayer({
             if (destroyed) return;
 
             // Prevent event feedback loop if triggered remotely
-            if (isRemoteUpdateRef.current) {
-              isRemoteUpdateRef.current = false;
-              return;
-            }
+            if (isRemoteUpdateRef.current) return;
 
             const player = event.target;
             const time = player.getCurrentTime ? player.getCurrentTime() : 0;
@@ -324,10 +343,8 @@ export default function VideoPlayer({
   // HTML5 Event Handlers (Local User Actions)
   // ----------------------------------------------------
   const handleHtml5Play = () => {
-    if (isRemoteUpdateRef.current) {
-      isRemoteUpdateRef.current = false;
-      return;
-    }
+    if (isRemoteUpdateRef.current) return;
+    
     setIsPlaying(true);
     shouldBePlayingRef.current = true;
     setAutoplayBlocked(false);
@@ -341,10 +358,8 @@ export default function VideoPlayer({
   };
 
   const handleHtml5Pause = () => {
-    if (isRemoteUpdateRef.current || isSeekingRef.current) {
-      isRemoteUpdateRef.current = false;
-      return;
-    }
+    if (isRemoteUpdateRef.current || isSeekingRef.current) return;
+
     setIsPlaying(false);
     shouldBePlayingRef.current = false;
     targetSeekTimeRef.current = null;
@@ -358,12 +373,23 @@ export default function VideoPlayer({
     }
   };
 
-  const handleHtml5Seeked = () => {
+  const handleHtml5Seeking = () => {
+    isSeekingRef.current = true;
     if (isRemoteUpdateRef.current) {
-      isRemoteUpdateRef.current = false;
+      programmaticSeekRef.current = true;
+    }
+  };
+
+  const handleHtml5Seeked = () => {
+    isSeekingRef.current = false;
+    
+    if (programmaticSeekRef.current) {
+      programmaticSeekRef.current = false;
       return;
     }
-    isSeekingRef.current = false;
+    
+    if (isRemoteUpdateRef.current) return;
+
     if (videoRef.current) {
       socket.emit('video-seek', {
         roomId,
@@ -624,9 +650,14 @@ export default function VideoPlayer({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center bg-zinc-950 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800">
+    <div 
+      className="relative w-full h-full flex flex-col items-center justify-center bg-zinc-950 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800"
+      onClick={showUi}
+      onMouseMove={showUi}
+      onTouchStart={showUi}
+    >
       {/* Sync Badge */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-medium text-white/90">
+      <div className={`absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-medium text-white/90 transition-opacity duration-300 ${isUiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         {syncStatus}
       </div>
@@ -634,13 +665,13 @@ export default function VideoPlayer({
       {/* Top Right: Volume Booster */}
       {!isYouTube && (
         <button
-          onClick={cycleBoost}
+          onClick={(e) => { e.stopPropagation(); cycleBoost(); }}
           title="Penguat Suara Film (Web Audio Boost)"
-          className={`absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md border transition-all cursor-pointer ${
+          className={`absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md border transition-all duration-300 cursor-pointer ${
             boostLevel > 1
               ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-950 animate-pulse'
               : 'bg-black/60 text-zinc-300 border-white/10 hover:bg-zinc-800 hover:text-white'
-          }`}
+          } ${isUiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <Volume2 className="w-3.5 h-3.5" />
           <span>Boost Film: {boostLevel * 100}%</span>
@@ -687,7 +718,7 @@ export default function VideoPlayer({
             preload="auto"
             onPlay={handleHtml5Play}
             onPause={handleHtml5Pause}
-            onSeeking={() => { isSeekingRef.current = true; }}
+            onSeeking={handleHtml5Seeking}
             onSeeked={handleHtml5Seeked}
             onTimeUpdate={handleHtml5TimeUpdate}
           />
