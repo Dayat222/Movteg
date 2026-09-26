@@ -344,7 +344,11 @@ export default function VideoPlayer({
   // ----------------------------------------------------
   // HTML5 Event Handlers (Local User Actions)
   // ----------------------------------------------------
+  const lastProgrammaticSeekTimeRef = useRef(0);
+
   const handleHtml5Play = () => {
+    if (isRemoteUpdateRef.current || isSeekingRef.current) return;
+    if (Date.now() - lastProgrammaticSeekTimeRef.current < 1000) return;
     if (expectedPlayingRef.current?.state === true && (Date.now() - expectedPlayingRef.current.timestamp < 5000)) {
       expectedPlayingRef.current = null;
       return;
@@ -363,6 +367,8 @@ export default function VideoPlayer({
   };
 
   const handleHtml5Pause = () => {
+    if (isRemoteUpdateRef.current || isSeekingRef.current) return;
+    if (Date.now() - lastProgrammaticSeekTimeRef.current < 1000) return;
     if (expectedPlayingRef.current?.state === false && (Date.now() - expectedPlayingRef.current.timestamp < 5000)) {
       expectedPlayingRef.current = null;
       return;
@@ -388,6 +394,7 @@ export default function VideoPlayer({
   const handleHtml5Seeked = () => {
     isSeekingRef.current = false;
     
+    if (isRemoteUpdateRef.current) return;
     if (!videoRef.current) return;
     
     const now = Date.now();
@@ -402,7 +409,10 @@ export default function VideoPlayer({
       }
     }
 
-    if (matched) return;
+    if (matched) {
+      lastProgrammaticSeekTimeRef.current = Date.now();
+      return;
+    }
 
     socket.emit('video-seek', {
       roomId,
