@@ -301,6 +301,7 @@ export default function VideoPlayer({
       socket.emit('video-play', {
         roomId,
         currentTime: videoRef.current.currentTime,
+        sentAt: Date.now(),
       });
     }
   };
@@ -315,6 +316,7 @@ export default function VideoPlayer({
       socket.emit('video-pause', {
         roomId,
         currentTime: videoRef.current.currentTime,
+        sentAt: Date.now(),
       });
     }
   };
@@ -329,6 +331,7 @@ export default function VideoPlayer({
       socket.emit('video-seek', {
         roomId,
         currentTime: videoRef.current.currentTime,
+        sentAt: Date.now(),
       });
     }
   };
@@ -346,40 +349,43 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!socket) return;
 
-    // 1. Partner played video
-    const handleRemotePlay = ({ currentTime: remoteTime, by }) => {
+    // 1. Partner played video (High Precision + Latency Compensation)
+    const handleRemotePlay = ({ currentTime: remoteTime, sentAt, by }) => {
       setIsPlaying(true);
       showSyncNotice(`▶️ ${by || 'Pasangan'} memutar video`);
       if (onActivity) onActivity(`${by || 'Pasangan'} memutar video`);
 
+      const transitLag = sentAt ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
+      const targetTime = remoteTime + (transitLag < 2.0 ? transitLag : 0);
+
       if (isYouTube && ytPlayerRef.current?.playVideo) {
         isRemoteUpdateRef.current = true;
-        if (Math.abs((ytPlayerRef.current.getCurrentTime() || 0) - remoteTime) > 1.5) {
-          ytPlayerRef.current.seekTo(remoteTime, true);
+        const cur = ytPlayerRef.current.getCurrentTime() || 0;
+        if (Math.abs(cur - targetTime) > 0.3) {
+          ytPlayerRef.current.seekTo(targetTime, true);
         }
         ytPlayerRef.current.playVideo();
-        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
         let changed = false;
-        if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
-          applyVideoSeek(videoRef.current, remoteTime);
+        if (Math.abs(videoRef.current.currentTime - targetTime) > 0.2) {
+          applyVideoSeek(videoRef.current, targetTime);
           changed = true;
         }
         if (videoRef.current.paused) {
           changed = true;
           videoRef.current.play().catch(() => {
-            // Autoplay blocked by browser
             isRemoteUpdateRef.current = false;
           });
         }
         if (changed) {
           isRemoteUpdateRef.current = true;
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
         }
       }
     };
 
-    // 2. Partner paused video
+    // 2. Partner paused video (Snap to Exact Same Frame)
     const handleRemotePause = ({ currentTime: remoteTime, by }) => {
       setIsPlaying(false);
       showSyncNotice(`⏸️ ${by || 'Pasangan'} menjeda video`);
@@ -387,29 +393,20 @@ export default function VideoPlayer({
 
       if (isYouTube && ytPlayerRef.current?.pauseVideo) {
         isRemoteUpdateRef.current = true;
-        if (Math.abs((ytPlayerRef.current.getCurrentTime() || 0) - remoteTime) > 1.5) {
-          ytPlayerRef.current.seekTo(remoteTime, true);
-        }
+        ytPlayerRef.current.seekTo(remoteTime, true);
         ytPlayerRef.current.pauseVideo();
-        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
-        let changed = false;
-        if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
-          applyVideoSeek(videoRef.current, remoteTime);
-          changed = true;
-        }
+        isRemoteUpdateRef.current = true;
+        applyVideoSeek(videoRef.current, remoteTime);
         if (!videoRef.current.paused) {
-          changed = true;
           videoRef.current.pause();
         }
-        if (changed) {
-          isRemoteUpdateRef.current = true;
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
-        }
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       }
     };
 
-    // 3. Partner seeked
+    // 3. Partner seeked (Strict Alignment)
     const handleRemoteSeek = ({ currentTime: remoteTime, by }) => {
       showSyncNotice(`⏩ ${by || 'Pasangan'} menggeser durasi`);
       if (onActivity) onActivity(`${by || 'Pasangan'} menggeser video ke ${formatTime(remoteTime)}`);
@@ -417,26 +414,53 @@ export default function VideoPlayer({
       if (isYouTube && ytPlayerRef.current?.seekTo) {
         isRemoteUpdateRef.current = true;
         ytPlayerRef.current.seekTo(remoteTime, true);
-        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
-        if (Math.abs(videoRef.current.currentTime - remoteTime) > 1.5) {
+        if (Math.abs(videoRef.current.currentTime - remoteTime) > 0.1) {
           isRemoteUpdateRef.current = true;
           applyVideoSeek(videoRef.current, remoteTime);
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
         }
       }
     };
 
-    // 4. Initial room sync state
+    // 4. Periodic Drift Correction (Continuous Lockstep)
+    const handleSyncHeartbeat = ({ currentTime: remoteTime, isPlaying: remoteIsPlaying, sentAt }) => {
+      if (isRemoteUpdateRef.current || isSeekingRef.current) return;
+      if (!remoteIsPlaying) return;
+
+      const transitLag = sentAt ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
+      const targetTime = remoteTime + (transitLag < 1.5 ? transitLag : 0);
+
+      if (isYouTube && ytPlayerRef.current) {
+        const cur = ytPlayerRef.current.getCurrentTime() || 0;
+        const drift = Math.abs(cur - targetTime);
+        if (drift > 0.35) {
+          isRemoteUpdateRef.current = true;
+          ytPlayerRef.current.seekTo(targetTime, true);
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+        }
+      } else if (videoRef.current && !videoRef.current.paused) {
+        const cur = videoRef.current.currentTime;
+        const drift = Math.abs(cur - targetTime);
+        if (drift > 0.25) {
+          isRemoteUpdateRef.current = true;
+          applyVideoSeek(videoRef.current, targetTime);
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 300);
+        }
+      }
+    };
+
+    // 5. Initial room sync state
     const handleRoomState = ({ isPlaying: remoteIsPlaying, currentTime: remoteTime }) => {
       if (isYouTube && ytPlayerRef.current?.seekTo) {
         isRemoteUpdateRef.current = true;
         ytPlayerRef.current.seekTo(remoteTime, true);
         if (remoteIsPlaying) ytPlayerRef.current.playVideo();
-        setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+        setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
       } else if (videoRef.current) {
         let changed = false;
-        if (Math.abs(videoRef.current.currentTime - (remoteTime || 0)) > 1.5) {
+        if (Math.abs(videoRef.current.currentTime - (remoteTime || 0)) > 0.25) {
           applyVideoSeek(videoRef.current, remoteTime || 0);
           changed = true;
         }
@@ -446,23 +470,49 @@ export default function VideoPlayer({
         }
         if (changed) {
           isRemoteUpdateRef.current = true;
-          setTimeout(() => { isRemoteUpdateRef.current = false; }, 800);
+          setTimeout(() => { isRemoteUpdateRef.current = false; }, 400);
         }
       }
     };
 
+    // Heartbeat emitter every 3.5 seconds
+    const heartbeatTimer = setInterval(() => {
+      if (!socket || !roomId) return;
+      const isCurrentlyPlaying = isYouTube
+        ? (ytPlayerRef.current?.getPlayerState?.() === 1)
+        : (videoRef.current && !videoRef.current.paused);
+
+      if (isCurrentlyPlaying) {
+        const curTime = isYouTube
+          ? (ytPlayerRef.current?.getCurrentTime?.() || 0)
+          : (videoRef.current?.currentTime || 0);
+
+        if (curTime > 0) {
+          socket.emit('sync-heartbeat', {
+            roomId,
+            currentTime: curTime,
+            isPlaying: true,
+            sentAt: Date.now(),
+          });
+        }
+      }
+    }, 3500);
+
     socket.on('video-play', handleRemotePlay);
     socket.on('video-pause', handleRemotePause);
     socket.on('video-seek', handleRemoteSeek);
+    socket.on('sync-heartbeat', handleSyncHeartbeat);
     socket.on('room-state', handleRoomState);
 
     return () => {
+      clearInterval(heartbeatTimer);
       socket.off('video-play', handleRemotePlay);
       socket.off('video-pause', handleRemotePause);
       socket.off('video-seek', handleRemoteSeek);
+      socket.off('sync-heartbeat', handleSyncHeartbeat);
       socket.off('room-state', handleRoomState);
     };
-  }, [socket, isYouTube, onActivity]);
+  }, [socket, isYouTube, onActivity, roomId]);
 
   const formatTime = (secs) => {
     if (isNaN(secs)) return '00:00';
